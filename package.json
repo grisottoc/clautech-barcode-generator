@@ -1,0 +1,30 @@
+{
+  "name": "clautech-barcode-generator",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Offline internal desktop app scaffold (Electron + React + Vite + TS).",
+  "main": "dist/electron/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "tsc -p tsconfig.json --noEmit && electron-vite build",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "preview": "electron-vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.1",
+    "electron-vite": "^2.3.0",
+    "typescript": "^5.7.3",
+    "vite": "^5.4.11",
+    "vitest": "^4.0.18"
+  }
+}
