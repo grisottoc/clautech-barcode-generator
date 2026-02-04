@@ -1,7 +1,8 @@
 # Changelog
 
 ## [Unreleased]
-- (placeholder)
+- Fixed test runner config to use repo root for Vitest scripts
+- Added `test:watch` script for watch-mode runs
 
 ## [0.0.1] - 2026-02-03
 ### Added
