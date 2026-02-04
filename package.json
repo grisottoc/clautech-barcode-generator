@@ -8,8 +8,9 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "tsc -p tsconfig.json --noEmit && electron-vite build",
-    "test": "vitest",
-    "test:run": "vitest run",
+    "test": "vitest --root .",
+    "test:watch": "vitest --root .",
+    "test:run": "vitest run --root .",
     "preview": "electron-vite preview"
   },
   "dependencies": {
@@ -23,6 +24,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.2.1",
     "electron-vite": "^2.3.0",
+    "pngjs": "^7.0.0",
     "typescript": "^5.7.3",
     "vite": "^5.4.11",
     "vitest": "^4.0.18"
