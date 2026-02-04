@@ -138,3 +138,15 @@ export interface AppError {
  * (Shared math utilities DO throw on invalid numeric inputs by contract.)
  */
 export type Result<T> = { ok: true; value: T } | { ok: false; error: AppError };
+
+/**
+ * Save As result for Electron "Save As..." flows.
+ *
+ * CONTRACT:
+ * - Cancel is not an error; it must be represented explicitly (never throw for cancel).
+ * - Failures should be returned as a typed AppError (avoid throwing across IPC).
+ */
+export type SaveAsResult =
+  | { ok: true; path: string }
+  | { ok: false; reason: "canceled" }
+  | { ok: false; reason: "error"; error: AppError };
