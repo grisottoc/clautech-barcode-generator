@@ -1,6 +1,7 @@
 import type { Job } from "../shared/types";
 import { computePixelSize } from "../shared/units";
-import { PNG } from "pngjs";
+import UPNG from "upng-js";
+
 
 /**
  * Local-only raster input (RGBA).
@@ -94,9 +95,20 @@ export async function exportPngFromRgba(input: RasterInput): Promise<Uint8Array>
   const bw = thresholdToMonochromeRGBA(input.data);
   assertMonochromeRGBA(bw);
 
-  const png = new PNG({ width: input.width, height: input.height });
-  // png.data is a Buffer in Node; Uint8Array-compatible assignment works.
-  png.data = Buffer.from(bw);
+  const ab = bw.buffer.slice(
+      bw.byteOffset,
+      bw.byteOffset + bw.byteLength
+  );
+
+  const pngArrayBuffer = UPNG.encode(
+      [ab],
+      input.width,
+      input.height,
+  0
+  );
+
+return new Uint8Array(pngArrayBuffer);
+
 
   const encoded = PNG.sync.write(png);
   return new Uint8Array(encoded);

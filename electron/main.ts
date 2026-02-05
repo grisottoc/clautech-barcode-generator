@@ -73,12 +73,18 @@ ipcMain.handle(
     const win = BrowserWindow.fromWebContents(evt.sender);
     const defaultName = suggestPngFilename(job);
 
-    const { canceled, filePath } = await dialog.showSaveDialog(win ?? undefined, {
-      title: "Save PNG",
-      defaultPath: path.join(app.getPath("downloads"), defaultName),
-      filters: [{ name: "PNG Image", extensions: ["png"] }],
-      properties: ["createDirectory", "showOverwriteConfirmation"],
-    });
+    const options: Electron.SaveDialogOptions = {
+  title: "Save PNG",
+  defaultPath: path.join(app.getPath("downloads"), defaultName),
+  filters: [{ name: "PNG Image", extensions: ["png"] }],
+  properties: ["createDirectory", "showOverwriteConfirmation"],
+};
+
+
+    const { canceled, filePath } = win
+      ? await dialog.showSaveDialog(win, options)
+      : await dialog.showSaveDialog(options);
+
 
     if (canceled || !filePath) {
       return { ok: false, reason: "canceled" };

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { PNG } from "pngjs";
+import  UPNG  from "upng-js";
 import type { Job } from "../../shared/types";
 import { computePixelSize } from "../../shared/units";
 import {
@@ -10,13 +10,18 @@ import {
 } from "../png";
 
 function decodePng(pngBytes: Uint8Array) {
-  const decoded = PNG.sync.read(Buffer.from(pngBytes));
+  const decoded = UPNG.decode(
+    pngBytes.buffer.slice(pngBytes.byteOffset, pngBytes.byteOffset + pngBytes.byteLength)
+  );
+
+  const rgba = UPNG.toRGBA8(decoded)[0]; // ArrayBuffer
   return {
     width: decoded.width,
     height: decoded.height,
-    data: new Uint8Array(decoded.data),
+    data: new Uint8Array(rgba), // REAL RGBA
   };
 }
+
 
 describe("export/png", () => {
   it("thresholdToMonochromeRGBA: gray -> strict black/white + alpha forced to 255", () => {
