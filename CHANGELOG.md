@@ -9,3 +9,4 @@
 - Electron + React + Vite + TypeScript offline scaffold
 - Shared contracts and units conversion helpers
 - Vitest coverage for shared/units conversions + pixel math
+- QR job validation layer (size, margin, DPI, density checks; friendly errors)
