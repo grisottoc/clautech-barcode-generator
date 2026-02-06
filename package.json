@@ -6,7 +6,8 @@
   "main": "dist/electron/main.js",
   "type": "module",
   "scripts": {
-    "dev": "electron-vite dev",
+    "dev:raw": "electron-vite dev",
+    "dev": "powershell -ExecutionPolicy Bypass -File scripts/dev-clean.ps1",
     "build": "tsc -p tsconfig.json --noEmit && electron-vite build",
     "test": "vitest --root .",
     "test:watch": "vitest --root .",
@@ -14,17 +15,19 @@
     "preview": "electron-vite preview"
   },
   "dependencies": {
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "upng-js": "^2.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.2.1",
     "electron-vite": "^2.3.0",
-    "pngjs": "^7.0.0",
     "typescript": "^5.7.3",
     "vite": "^5.4.11",
     "vitest": "^4.0.18"
