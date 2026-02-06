@@ -1,12 +1,7 @@
-Here is the **entire `CONTEXT_PACK.md` file content**, **verbatim**, ready to copy-paste into a single file at the repo root.
-
----
-
-```md
 # CONTEXT_PACK.md
 ClautechBarCodeGenerator — Authoritative Repo Context
 
----
+<!-- ------------------------------------------------------------------------------------ -->
 
 ## 1) Repository Identity
 
@@ -18,30 +13,29 @@ ClautechBarCodeGenerator — Authoritative Repo Context
 - **Primary branch:** main
 - **Target release:** v0.1.0 (non-breaking feature release)
 
----
+<!-- ------------------------------------------------------------------------------------ -->
 
 ## 2) Locked Folder Structure (DO NOT CHANGE)
 
 This structure is canonical and enforced.
 
-```
-
+```text
 /electron
-main.ts
-preload.ts
-fileSave.ts
-filename.ts
+  main.ts
+  preload.ts
+  fileSave.ts
+  filename.ts
 
 /renderer
-index.html
-main.tsx
-App.tsx
-assets/
+  index.html
+  main.tsx
+  App.tsx
+  assets/
 
 /shared
-types.ts
-units.ts
-constants.ts
+  types.ts
+  units.ts
+  constants.ts
 
 /export
 /generator
@@ -49,23 +43,33 @@ constants.ts
 /persistence
 /shortcuts
 
+/scripts
+  dev-clean.ps1
+
 README.md
 ARCHITECTURE.md
 DEVELOPMENT_PLAN.md
 INTEGRATION_CHECKLIST.md
 CONTEXT_PACK.md
-
 ````
 
----
+<!-- ------------------------------------------------------------------------------------ -->
+
+## 2.1) Dev Scripts (REFERENCE)
+
+* `npm run dev` uses `scripts/dev-clean.ps1` to clear `ELECTRON_RUN_AS_NODE` before launching Electron.
+* `npm run dev:raw` runs `electron-vite dev` directly (no environment cleanup).
+
+<!-- ------------------------------------------------------------------------------------ -->
 
 ## 3) Locked Shared Contracts (DO NOT REDEFINE)
 
 ### Core unions
+
 ```ts
 export type Symbology = "qr" | "datamatrix" | "code128";
 export type Unit = "in" | "mm";
-````
+```
 
 ### Job (canonical)
 
@@ -123,7 +127,7 @@ export type SaveAsResult =
 * Cancel must never throw.
 * Shared contract changes are breaking by default unless explicitly approved.
 
----
+<!-- ------------------------------------------------------------------------------------ -->
 
 ## 4) Locked IPC APIs (Renderer → Main)
 
@@ -145,13 +149,13 @@ savePng(
 
 **Renderer must never touch filesystem APIs.**
 
----
+<!-- ------------------------------------------------------------------------------------ -->
 
 ## 5) Locked Filename Policy (PNG Export)
 
 ### Format
 
-```
+```text
 TYPE_payloadSlug_WxHunit_dpipi_m<margin><unit>.png
 ```
 
@@ -169,7 +173,7 @@ TYPE_payloadSlug_WxHunit_dpipi_m<margin><unit>.png
 * Aggressive length clamping
 * Behavior locked by tests
 
----
+<!-- ------------------------------------------------------------------------------------ -->
 
 ## 6) Pixel Math (LOCKED)
 
@@ -178,26 +182,26 @@ TYPE_payloadSlug_WxHunit_dpipi_m<margin><unit>.png
 * Margin is physical and converted using the same math
 * No module may re-implement mm/in → px logic
 
----
+<!-- ------------------------------------------------------------------------------------ -->
 
 ## 7) Completed Modules (LOCKED)
 
 * Repo Skeleton & Build ✅
 * Shared Types & Units ✅
 * IPC Save As & File Write Pipeline ✅
+* PNG Monochrome Export Pipeline ✅
 
----
+<!-- ------------------------------------------------------------------------------------ -->
 
 ## 8) Active / Upcoming Modules
 
-* PNG Monochrome Export Pipeline ⏳
 * QR Generator ⏳
 * Validation Layer ⏳
 * Presets & History ⏳
 * Templates ⏳
 * Shortcuts ⏳
 
----
+<!-- ------------------------------------------------------------------------------------ -->
 
 ## 9) Mandatory Rules for All Module Chats
 
@@ -211,10 +215,9 @@ When opening a new module chat:
 
    * Electron security flags
    * Folder structure
-   * Shared contracts
-     unless explicitly approved in the master chat.
+   * Shared contracts (unless explicitly approved in the master chat)
 
----
+<!-- ------------------------------------------------------------------------------------ -->
 
 ## 10) Quality Bar (NON-NEGOTIABLE)
 
@@ -226,22 +229,5 @@ When opening a new module chat:
 * Cancel never throws
 * Tests must remain green
 
----
+<!-- ------------------------------------------------------------------------------------ -->
 
-**This file is the single source of truth for repo context.**
-If it is not included in a module chat, that chat is invalid.
-
-```
-
----
-
-### Next step (do this now)
-1. Create `CONTEXT_PACK.md` at repo root  
-2. Paste this content  
-3. Commit + push  
-4. Come back and say:
-
-> **“CONTEXT_PACK committed.”**
-
-I will then proceed cleanly with the **PNG Monochrome Export Pipeline** without losing time or re-correcting files.
-```
