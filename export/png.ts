@@ -1,5 +1,6 @@
 import type { Job } from "../shared/types";
 import { computePixelSize } from "../shared/units";
+// import { PNG } from "pngjs";
 import UPNG from "upng-js";
 
 
@@ -22,10 +23,10 @@ export function assertMonochromeRGBA(rgba: Uint8Array): void {
   }
 
   for (let i = 0; i < rgba.length; i += 4) {
-    const r = rgba[i];
-    const g = rgba[i + 1];
-    const b = rgba[i + 2];
-    const a = rgba[i + 3];
+    const r = rgba[i] ?? 0;
+    const g = rgba[i + 1] ?? 0;
+    const b = rgba[i + 2] ?? 0;
+    const a = rgba[i + 3] ?? 0;
 
     const is01 = (v: number) => v === 0 || v === 255;
 
@@ -58,9 +59,9 @@ export function thresholdToMonochromeRGBA(rgba: Uint8Array, threshold = 128): Ui
   const out = new Uint8Array(rgba.length);
 
   for (let i = 0; i < rgba.length; i += 4) {
-    const r = rgba[i];
-    const g = rgba[i + 1];
-    const b = rgba[i + 2];
+    const r = rgba[i] ?? 0;
+    const g = rgba[i + 1]?? 0;
+    const b = rgba[i + 2] ?? 0;
     const avg = (r + g + b) / 3;
 
     const v = avg < threshold ? 0 : 255;
@@ -79,40 +80,18 @@ export function thresholdToMonochromeRGBA(rgba: Uint8Array, threshold = 128): Ui
  * Enforces strict monochrome prior to encode.
  */
 export async function exportPngFromRgba(input: RasterInput): Promise<Uint8Array> {
-  if (!Number.isInteger(input.width) || input.width <= 0) {
-    throw new Error(`Invalid width: ${input.width}`);
-  }
-  if (!Number.isInteger(input.height) || input.height <= 0) {
-    throw new Error(`Invalid height: ${input.height}`);
-  }
+  const mono = thresholdToMonochromeRGBA(input.data, 128);
+  assertMonochromeRGBA(mono);
 
-  const expectedLen = input.width * input.height * 4;
-  if (input.data.length !== expectedLen) {
-    throw new Error(`Invalid RGBA length: got ${input.data.length}, expected ${expectedLen}`);
-  }
+  // UPNG expects an ArrayBuffer containing RGBA pixels
+  const ab = mono.buffer.slice(mono.byteOffset, mono.byteOffset + mono.byteLength);
 
-  // Force strict BW + opaque, then assert.
-  const bw = thresholdToMonochromeRGBA(input.data);
-  assertMonochromeRGBA(bw);
+  // 0 = lossless; returns ArrayBuffer of PNG bytes
+  const pngArrayBuffer = UPNG.encode([ab], input.width, input.height, 0);
 
-  const ab = bw.buffer.slice(
-      bw.byteOffset,
-      bw.byteOffset + bw.byteLength
-  );
-
-  const pngArrayBuffer = UPNG.encode(
-      [ab],
-      input.width,
-      input.height,
-  0
-  );
-
-return new Uint8Array(pngArrayBuffer);
-
-
-  const encoded = PNG.sync.write(png);
-  return new Uint8Array(encoded);
+  return new Uint8Array(pngArrayBuffer);
 }
+
 
 /**
  * Computes final pixel size using computePixelSize(job.size)

@@ -24,6 +24,6 @@
       "@shared/*": ["shared/*"]
     }
   },
-  "include": ["electron/**/*.ts", "renderer/**/*.ts", "renderer/**/*.tsx", "shared/**/*.ts"],
+  "include": ["electron/**/*.ts", "renderer/**/*.ts", "renderer/**/*.tsx", "shared/**/*.ts","**/*.ts", "**/*.tsx", "types/**/*.d.ts"],
   "exclude": ["dist", "node_modules"]
 }
