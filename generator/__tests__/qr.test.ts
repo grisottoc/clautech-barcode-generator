@@ -71,7 +71,7 @@ describe("generateQrRaster", () => {
     expect(Buffer.from(a.data).equals(Buffer.from(b.data))).toBe(true);
   });
 
-  it("sizes raster as min(finalW-2m, finalH-2m) in pixels", async () => {
+  it("returns inner-area-sized raster for rectangular jobs", async () => {
     const job = makeJob({
       margin: { value: 0.04 }, // ~1mm in inches
       size: { unit: "in", width: 2, height: 1, dpi: 300 },
@@ -80,11 +80,14 @@ describe("generateQrRaster", () => {
 
     const { pixelWidth, pixelHeight } = computePixelSize(job.size, job.size.dpi);
     const marginPx = Math.round(toPixels(job.margin.value, job.size.unit, job.size.dpi));
-    const expectedCodePx = Math.min(pixelWidth - 2 * marginPx, pixelHeight - 2 * marginPx);
+    const innerW = pixelWidth - 2 * marginPx;
+    const innerH = pixelHeight - 2 * marginPx;
 
     const raster = await generateQrRaster(job);
-    expect(raster.width).toBe(expectedCodePx);
-    expect(raster.height).toBe(expectedCodePx);
+    expect(raster.width).toBe(innerW);
+    expect(raster.height).toBe(innerH);
+    expect(raster.data.length).toBe(innerW * innerH * 4);
+    expectStrictMonochromeRGBA(raster.data);
   });
 
   it("throws a friendly error when modules would be too small", async () => {
