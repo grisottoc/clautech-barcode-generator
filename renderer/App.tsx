@@ -3,141 +3,119 @@ import type { Job } from "../shared/types";
 import { generateQrRaster } from "../generator/qr";
 import { renderMarginAndExport } from "../export/png";
 
+function nowISO() {
+  return new Date().toISOString();
+}
+
+/**
+ * UI-only job builder.
+ * Keeps App.tsx clean and avoids leaking form state into generators.
+ */
+function buildJob(payload: string): Job {
+  return {
+    id: crypto.randomUUID(),
+    symbology: "qr",
+    payload,
+
+    size: {
+      unit: "in",
+      width: 1,
+      height: 1,
+      dpi: 300,
+    },
+
+    margin: { value: 0.1 },
+
+    createdAt: nowISO(),
+    updatedAt: nowISO(),
+  };
+}
+
 export default function App() {
-  const [status, setStatus] = useState<string>("idle");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [payload, setPayload] = useState("HELLO WORLD");
   const [pngBytes, setPngBytes] = useState<Uint8Array | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const job: Job = useMemo(() => {
-    const now = new Date().toISOString();
-    return {
-      id: "smoke-qr-1",
-      symbology: "qr",
-      payload: "https://example.com",
-      size: { unit: "in", width: 1, height: 1, dpi: 600 },
-      // ~1mm expressed in inches (1mm / 25.4)
-      margin: { value: 1 / 25.4 },
-      createdAt: now,
-      updatedAt: now,
-    };
-  }, []);
+  const job = useMemo(() => buildJob(payload), [payload]);
 
+  // Generate preview whenever job changes
   useEffect(() => {
-    // cleanup blob URL
+    let canceled = false;
+
+    async function run() {
+      try {
+        setError(null);
+
+        const code = await generateQrRaster(job);
+        const png = await renderMarginAndExport(job, code);
+
+        if (!canceled) setPngBytes(png);
+      } catch (e) {
+        if (!canceled) {
+          setError(e instanceof Error ? e.message : String(e));
+          setPngBytes(null);
+        }
+      }
+    }
+
+    run();
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      canceled = true;
     };
-  }, [previewUrl]);
+  }, [job]);
 
-  async function generateAndPreview() {
-    try {
-      setStatus("Generating QR raster...");
-      const raster = await generateQrRaster(job);
+  const previewUrl = useMemo(() => {
+    if (!pngBytes) return null;
+    const blob = new Blob(
+      [pngBytes.buffer.slice(pngBytes.byteOffset, pngBytes.byteOffset + pngBytes.byteLength)],
+      { type: "image/png" }
+    );
+    return URL.createObjectURL(blob);
+  }, [pngBytes]);
 
-      setStatus("Rendering margin + exporting PNG...");
-      const bytes = await renderMarginAndExport(job, raster);
-      setPngBytes(bytes);
+  async function onSaveAs() {
+    if (!pngBytes) return;
 
-      // Create preview URL
-      // const blob = new Blob([bytes], { type: "image/png" });
-      // const blob = new Blob([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)], { type: "image/png" });
-      const ab = bytes instanceof Uint8Array ? bytes.slice().buffer : new Uint8Array(bytes as any).slice().buffer;
-      const blob = new Blob([ab], { type: "image/png" });
-
-
-      const url = URL.createObjectURL(blob);
-
-      // Revoke old URL to avoid leaks
-      setPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return url;
-      });
-
-      setStatus(`Ready (PNG bytes: ${bytes.length})`);
-    } catch (e: any) {
-      setStatus(`Error: ${e?.message ?? String(e)}`);
-    }
-  }
-
-  async function saveAs() {
-    if (!pngBytes) {
-      setStatus("Generate first.");
-      return;
-    }
-
-    setStatus("Opening Save As...");
-    // const res = await window.api.saveAsPng(job, pngBytes);
-    const res = await (window.api as any).saveAsPng(job, pngBytes);
-
-
-    if (res.ok) {
-      setStatus(`Saved: ${res.path}`);
-    } else if (res.reason === "canceled") {
-      setStatus("Save canceled.");
-    } else {
-      setStatus(`Save failed: ${res.error.code} — ${res.error.message}`);
+    const res = await window.api.saveAsPng(job, pngBytes);
+    if (!res.ok && res.reason === "error") {
+      alert(res.error.message);
     }
   }
 
   return (
     <div style={{ padding: 16, fontFamily: "system-ui, sans-serif" }}>
-      <h2>QR Smoke Test</h2>
+      <h1>ClautechBarCodeGenerator</h1>
 
-      <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-        <button onClick={generateAndPreview}>Generate + Preview</button>
-        <button onClick={saveAs} disabled={!pngBytes}>
-          Save As PNG
-        </button>
-      </div>
+      <section style={{ marginBottom: 16 }}>
+        <label>
+          Payload:&nbsp;
+          <input
+            value={payload}
+            onChange={(e) => setPayload(e.target.value)}
+            style={{ width: 320 }}
+          />
+        </label>
+      </section>
 
-      <div style={{ marginBottom: 12 }}>
-        <strong>Status:</strong> {status}
-      </div>
-
-      <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-        <div>
-          <div style={{ marginBottom: 6 }}>
-            <strong>Job</strong>
-          </div>
-          <pre style={{ fontSize: 12, background: "#f4f4f4", padding: 12, borderRadius: 8 }}>
-            {JSON.stringify(job, null, 2)}
-          </pre>
+      {error && (
+        <div style={{ color: "red", marginBottom: 12 }}>
+          {error}
         </div>
+      )}
 
-        <div>
-          <div style={{ marginBottom: 6 }}>
-            <strong>Preview</strong>
-          </div>
-          <div
-            style={{
-              width: 320,
-              height: 320,
-              border: "1px solid #ddd",
-              borderRadius: 8,
-              display: "grid",
-              placeItems: "center",
-              background: "#fff",
-            }}
-          >
-            {previewUrl ? (
-              <img
-                src={previewUrl}
-                alt="QR preview"
-                style={{
-                  maxWidth: "100%",
-                  maxHeight: "100%",
-                  imageRendering: "pixelated",
-                }}
-              />
-            ) : (
-              <span style={{ color: "#666" }}>No preview yet</span>
-            )}
-          </div>
-          <div style={{ marginTop: 8, fontSize: 12, color: "#666" }}>
-            Tip: Click <em>Generate + Preview</em> then <em>Save As PNG</em>.
-          </div>
-        </div>
-      </div>
+      {previewUrl && (
+        <section style={{ marginBottom: 16 }}>
+          <img
+            src={previewUrl}
+            alt="QR preview"
+            style={{ border: "1px solid #ccc" }}
+          />
+        </section>
+      )}
+
+      <button onClick={onSaveAs} disabled={!pngBytes}>
+        Save as PNG…
+      </button>
     </div>
   );
 }
