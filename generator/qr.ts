@@ -1,7 +1,7 @@
 // /generator/qr.ts
 
 import type { Job } from "../shared/types";
-import { computePixelSize, toPixels, inToMm, mmToIn } from "../shared/units";
+import { computePixelSize, toPixels, inToMm } from "../shared/units";
 import QRCode from "qrcode";
 
 export interface RasterInput {
@@ -17,8 +17,9 @@ export interface RasterInput {
 const MIN_MODULE_PX = 4;
 
 /**
- * Generate a QR code raster (no margin baked in).
- * The returned raster represents ONLY the code area; margin/quiet-zone is handled by export/png.ts renderMarginAndExport().
+ * Generate a QR code raster for the inner printable area (no margin baked in).
+ * The returned raster is exactly innerW x innerH; when inner area is rectangular,
+ * the square QR is centered on a white background.
  */
 export async function generateQrRaster(job: Job): Promise<RasterInput> {
   if (job.symbology !== "qr") {
@@ -31,14 +32,14 @@ export async function generateQrRaster(job: Job): Promise<RasterInput> {
   const { pixelWidth, pixelHeight } = computePixelSize(job.size, job.size.dpi);
   const marginPx = Math.round(toPixels(job.margin.value, job.size.unit, job.size.dpi));
 
-  const codeWidthPx = pixelWidth - 2 * marginPx;
-  const codeHeightPx = pixelHeight - 2 * marginPx;
+  const innerW = pixelWidth - 2 * marginPx;
+  const innerH = pixelHeight - 2 * marginPx;
 
-  if (codeWidthPx <= 0 || codeHeightPx <= 0) {
+  if (innerW <= 0 || innerH <= 0) {
     throw new Error("generateQrRaster: code area <= 0 after margins");
   }
 
-  const codePx = Math.min(codeWidthPx, codeHeightPx);
+  const codePx = Math.min(innerW, innerH);
 
   // Build module matrix (deterministic for same payload/options)
   const qr = QRCode.create(job.payload, {
@@ -77,10 +78,10 @@ export async function generateQrRaster(job: Job): Promise<RasterInput> {
   const qrPx = scale * n;
   const offset = Math.floor((codePx - qrPx) / 2);
 
-  const data = new Uint8Array(codePx * codePx * 4);
+  const qrData = new Uint8Array(codePx * codePx * 4);
 
   // Fill background white (RGBA 255)
-  data.fill(255);
+  qrData.fill(255);
 
   // Render black modules (RGBA 0,0,0,255), no antialias
   const modules = qr.modules.data; // Uint8Array/Array-like of 0/1, length n*n
@@ -101,16 +102,37 @@ export async function generateQrRaster(job: Job): Promise<RasterInput> {
 
         for (let x = 0; x < scale; x++) {
           const p = rowBase + x * 4;
-          data[p + 0] = 0;
-          data[p + 1] = 0;
-          data[p + 2] = 0;
-          data[p + 3] = 255;
+          qrData[p + 0] = 0;
+          qrData[p + 1] = 0;
+          qrData[p + 2] = 0;
+          qrData[p + 3] = 255;
         }
       }
     }
   }
 
-  return { width: codePx, height: codePx, data };
+  const qrSquare: RasterInput = { width: codePx, height: codePx, data: qrData };
+  const outW = innerW;
+  const outH = innerH;
+  const out = new Uint8Array(outW * outH * 4);
+
+  for (let i = 0; i < out.length; i += 4) {
+    out[i + 0] = 255;
+    out[i + 1] = 255;
+    out[i + 2] = 255;
+    out[i + 3] = 255;
+  }
+
+  const offX = Math.floor((outW - qrSquare.width) / 2);
+  const offY = Math.floor((outH - qrSquare.height) / 2);
+
+  for (let y = 0; y < qrSquare.height; y++) {
+    const srcRow = y * qrSquare.width * 4;
+    const dstRow = (y + offY) * outW * 4 + offX * 4;
+    out.set(qrSquare.data.subarray(srcRow, srcRow + qrSquare.width * 4), dstRow);
+  }
+
+  return { width: outW, height: outH, data: out };
 }
 
 function trim3(n: number): string {
