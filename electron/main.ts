@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import path from "node:path";
-import type { Job, SaveAsResult, AppError } from "../shared/types";
+import { LocalJsonStore } from "../persistence/store";
+import type { Job, SaveAsResult, AppError, Preset, HistoryItem } from "../shared/types";
 import { suggestPngFilename } from "./filename";
 import { writeFileAtomic } from "./fileSave";
 
@@ -50,6 +51,68 @@ function toAppError(err: unknown, details?: Record<string, unknown>): AppError {
   };
 }
 
+function getStore() {
+  return new LocalJsonStore({ userDataDir: app.getPath("userData") });
+}
+
+export function registerPersistenceIpc() {
+  const store = getStore();
+
+  ipcMain.handle("persistence:getPresets", async () => {
+    try {
+      return await store.listPresets();
+    } catch (e) {
+      console.error("persistence:getPresets failed", e);
+      return [] as Preset[];
+    }
+  });
+
+  ipcMain.handle("persistence:savePreset", async (_evt, preset: Preset) => {
+    try {
+      return await store.upsertPreset(preset);
+    } catch (e) {
+      console.error("persistence:savePreset failed", e);
+      return [] as Preset[];
+    }
+  });
+
+  ipcMain.handle("persistence:deletePreset", async (_evt, id: string) => {
+    try {
+      return await store.deletePreset(id);
+    } catch (e) {
+      console.error("persistence:deletePreset failed", e);
+      return [] as Preset[];
+    }
+  });
+
+  ipcMain.handle("persistence:getHistory", async () => {
+    try {
+      return await store.listHistory();
+    } catch (e) {
+      console.error("persistence:getHistory failed", e);
+      return [] as HistoryItem[];
+    }
+  });
+
+  ipcMain.handle("persistence:addHistory", async (_evt, item: HistoryItem) => {
+    try {
+      return await store.addHistory(item);
+    } catch (e) {
+      console.error("persistence:addHistory failed", e);
+      return [] as HistoryItem[];
+    }
+  });
+
+  ipcMain.handle("persistence:clearHistory", async () => {
+    try {
+      return await store.clearHistory();
+    } catch (e) {
+      console.error("persistence:clearHistory failed", e);
+      return [] as HistoryItem[];
+    }
+  });
+}
+
 app.whenReady().then(() => {
   createWindow();
 
@@ -65,6 +128,8 @@ app.on("window-all-closed", () => {
 // --------------------
 // IPC
 // --------------------
+registerPersistenceIpc();
+
 ipcMain.handle("ping", async () => "pong");
 
 ipcMain.handle(

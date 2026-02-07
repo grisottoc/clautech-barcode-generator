@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import type { Job } from "../shared/types";
+// /renderer/App.tsx
+import { useEffect, useState } from "react";
+import type { HistoryItem, Job, Preset } from "../shared/types";
 import { generateQrRaster } from "../generator/qr";
 import { renderMarginAndExport } from "../export/png";
 
@@ -7,13 +8,21 @@ function nowISO() {
   return new Date().toISOString();
 }
 
+function makeId() {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `id-${Date.now()}-${Math.random().toString(16).slice(2)}`
+  );
+}
+
 /**
  * UI-only job builder.
  * Keeps App.tsx clean and avoids leaking form state into generators.
  */
 function buildJob(payload: string): Job {
+  const ts = nowISO();
   return {
-    id: crypto.randomUUID(),
+    id: makeId(),
     symbology: "qr",
     payload,
 
@@ -26,23 +35,46 @@ function buildJob(payload: string): Job {
 
     margin: { value: 0.1 },
 
-    createdAt: nowISO(),
-    updatedAt: nowISO(),
+    createdAt: ts,
+    updatedAt: ts,
   };
 }
 
 export default function App() {
-  const [payload, setPayload] = useState("HELLO WORLD");
+  const [job, setJob] = useState<Job>(() => buildJob("HELLO WORLD"));
   const [pngBytes, setPngBytes] = useState<Uint8Array | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const job = useMemo(() => buildJob(payload), [payload]);
+  const [presets, setPresets] = useState<Preset[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+
+  // Load persisted presets + history on mount
+  useEffect(() => {
+    let canceled = false;
+
+    (async () => {
+      try {
+        const p = await window.api.getPresets();
+        if (!canceled) setPresets(p);
+
+        const h = await window.api.getHistory();
+        if (!canceled) setHistory(h);
+      } catch (e) {
+        if (!canceled) setError(e instanceof Error ? e.message : String(e));
+      }
+    })();
+
+    return () => {
+      canceled = true;
+    };
+  }, []);
 
   // Generate preview whenever job changes
   useEffect(() => {
     let canceled = false;
 
-    async function run() {
+    (async () => {
       try {
         setError(null);
 
@@ -56,28 +88,98 @@ export default function App() {
           setPngBytes(null);
         }
       }
-    }
+    })();
 
-    run();
     return () => {
       canceled = true;
     };
   }, [job]);
 
-  const previewUrl = useMemo(() => {
-    if (!pngBytes) return null;
-  const ab = pngBytes.slice().buffer as ArrayBuffer;
-  const blob = new Blob([ab], { type: "image/png" });
-  return URL.createObjectURL(blob);
-}, [pngBytes]);
+  // Manage object URL lifecycle to avoid leaks
+  useEffect(() => {
+    if (!pngBytes) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    const ab = pngBytes.slice().buffer as ArrayBuffer;
+    const blob = new Blob([ab], { type: "image/png" });
+    const url = URL.createObjectURL(blob);
+
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [pngBytes]);
+
+  async function appendHistorySnapshot(savedPath?: string) {
+    const item: HistoryItem = {
+      id: makeId(),
+      timestamp: nowISO(),
+      jobSnapshot: job,
+      ...(savedPath ? { savedPath } : {}),
+    };
+
+    const next = await window.api.addHistory(item);
+    setHistory(next);
+  }
 
   async function onSaveAs() {
     if (!pngBytes) return;
 
-    const res = await window.api.saveAsPng(job, pngBytes);
-    if (!res.ok && res.reason === "error") {
-      alert(res.error.message);
+    try {
+      const res = await window.api.saveAsPng(job, pngBytes);
+      if (res.ok) {
+        await appendHistorySnapshot(res.path);
+      } else if (res.reason === "error") {
+        alert(res.error.message);
+      }
+      // canceled -> no-op
+    } catch (e) {
+      alert(e instanceof Error ? e.message : String(e));
     }
+  }
+
+  async function onSavePreset() {
+    // NOTE: payload is optional in JobDefaults; keeping it allows payload-including presets.
+    // If you want "format-only" presets, remove payload from jobDefaults.
+    const preset: Preset = {
+      id: makeId(),
+      name: `Preset ${new Date().toLocaleString()}`,
+      jobDefaults: {
+        symbology: job.symbology,
+        payload: job.payload,
+        size: job.size,
+        margin: job.margin,
+      },
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+    };
+
+    const next = await window.api.savePreset(preset);
+    setPresets(next);
+  }
+
+  async function onDeletePreset(id: string) {
+    const next = await window.api.deletePreset(id);
+    setPresets(next);
+  }
+
+  function onApplyPreset(preset: Preset) {
+    setJob((prev) => ({
+      ...prev,
+      ...preset.jobDefaults,
+      payload: preset.jobDefaults.payload ?? prev.payload,
+      id: makeId(),
+      updatedAt: nowISO(),
+    }));
+  }
+
+  function onRestoreHistory(item: HistoryItem) {
+    // Restore snapshot but refresh instance identifiers/timestamps for determinism
+    setJob({
+      ...item.jobSnapshot,
+      id: makeId(),
+      updatedAt: nowISO(),
+    });
   }
 
   return (
@@ -88,18 +190,20 @@ export default function App() {
         <label>
           Payload:&nbsp;
           <input
-            value={payload}
-            onChange={(e) => setPayload(e.target.value)}
+            value={job.payload}
+            onChange={(e) =>
+              setJob((prev) => ({
+                ...prev,
+                payload: e.target.value,
+                updatedAt: nowISO(),
+              }))
+            }
             style={{ width: 320 }}
           />
         </label>
       </section>
 
-      {error && (
-        <div style={{ color: "red", marginBottom: 12 }}>
-          {error}
-        </div>
-      )}
+      {error && <div style={{ color: "red", marginBottom: 12 }}>{error}</div>}
 
       {previewUrl && (
         <section style={{ marginBottom: 16 }}>
@@ -112,8 +216,74 @@ export default function App() {
       )}
 
       <button onClick={onSaveAs} disabled={!pngBytes}>
-        Save as PNG…
+        Save as PNG...
       </button>
+
+      <div
+        style={{
+          borderTop: "1px solid #ddd",
+          marginTop: 12,
+          paddingTop: 12,
+        }}
+      >
+        <h3>Presets</h3>
+        <button onClick={onSavePreset}>Save Preset</button>
+
+        <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+          {presets.map((p) => (
+            <div
+              key={p.id}
+              style={{ display: "flex", gap: 8, alignItems: "center" }}
+            >
+              <button
+                onClick={() => onApplyPreset(p)}
+                style={{ flex: 1, textAlign: "left" }}
+              >
+                {p.name ?? p.id}
+              </button>
+              <button
+                onClick={() => onDeletePreset(p.id)}
+                aria-label="Delete preset"
+              >
+                x
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div
+        style={{
+          borderTop: "1px solid #ddd",
+          marginTop: 12,
+          paddingTop: 12,
+        }}
+      >
+        <h3>History</h3>
+
+        <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+          {history.slice(0, 10).map((h) => (
+            <button
+              key={h.id}
+              onClick={() => onRestoreHistory(h)}
+              style={{ textAlign: "left" }}
+            >
+              {h.jobSnapshot.symbology.toUpperCase()} -{" "}
+              {String(h.jobSnapshot.payload).slice(0, 24)}
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={async () => {
+            const next = await window.api.clearHistory();
+            setHistory(next);
+          }}
+          style={{ marginTop: 8 }}
+        >
+          Clear History
+        </button>
+      </div>
     </div>
   );
 }
