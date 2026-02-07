@@ -66,12 +66,10 @@ export default function App() {
 
   const previewUrl = useMemo(() => {
     if (!pngBytes) return null;
-    const blob = new Blob(
-      [pngBytes.buffer.slice(pngBytes.byteOffset, pngBytes.byteOffset + pngBytes.byteLength)],
-      { type: "image/png" }
-    );
-    return URL.createObjectURL(blob);
-  }, [pngBytes]);
+  const ab = pngBytes.slice().buffer as ArrayBuffer;
+  const blob = new Blob([ab], { type: "image/png" });
+  return URL.createObjectURL(blob);
+}, [pngBytes]);
 
   async function onSaveAs() {
     if (!pngBytes) return;
