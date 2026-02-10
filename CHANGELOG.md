@@ -3,6 +3,12 @@
 ## [Unreleased]
 - (placeholder)
 
+## [0.3.0] - 2026-02-10
+### Added
+- Data Matrix generator + validation (bwip-js), strict monochrome PNG output
+- Data Matrix UI tab with live preview + Save As
+- Rectangular label support via center-padded square symbol raster
+
 ## [0.2.0] - 2026-02-07
 ### Added
 - Local persistence store (offline JSON) for Presets and History
