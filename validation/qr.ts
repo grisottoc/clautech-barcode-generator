@@ -21,16 +21,6 @@ function isFiniteNonNegative(n: unknown): n is number {
   return typeof n === "number" && Number.isFinite(n) && n >= 0;
 }
 
-/**
- * Mirror the pixel rounding rule used across size->px conversions:
- * - Convert physical inches/mm to pixels via dpi and round to integer pixels.
- * This is intentionally deterministic and matches the shared units tests behavior.
- */
-function physicalToPixels(value: number, unit: "in" | "mm", dpi: number): number {
-  const inches = unit === "mm" ? value / 25.4 : value;
-  return Math.round(inches * dpi);
-}
-
 function getQrModuleCount(payload: string): number {
   // Must match generator’s QR lib and options (ECC "M")
   const qr = QRCode.create(payload, { errorCorrectionLevel: "M" });
@@ -89,24 +79,7 @@ export function validateQrJob(job: Job): Result<void> {
 
   // D) Derived pixel math constraints (mirror generator)
   const { pixelWidth, pixelHeight } = computePixelSize(job.size, dpi);
-  const marginPx = physicalToPixels(margin, unit as "in" | "mm", dpi);
-
-  const innerW = pixelWidth - 2 * marginPx;
-  const innerH = pixelHeight - 2 * marginPx;
-
-  if (innerW <= 0 || innerH <= 0) {
-    return invalid("Margin is too large at the chosen DPI (no inner area remains).", {
-      pixelWidth,
-      pixelHeight,
-      marginPx,
-      innerW,
-      innerH,
-      dpi,
-      unit,
-    });
-  }
-
-  const codePx = Math.min(innerW, innerH);
+  const codePx = Math.min(pixelWidth, pixelHeight);
 
   // E) QR density / module constraints (mirror generator)
   const n = getQrModuleCount(payload);
@@ -122,21 +95,16 @@ export function validateQrJob(job: Job): Result<void> {
   if (scale < MIN_MODULE_PX) {
     const minCodePx = n * MIN_MODULE_PX;
 
-    // Suggest a minimum physical size at current DPI:
-    // codePx = min(innerW, innerH) ~= min(pixelW, pixelH) - 2*marginPx
-    // so min(pixelW,pixelH) should be >= minCodePx + 2*marginPx
-    const minOuterPx = minCodePx + 2 * marginPx;
+    // Suggest a minimum physical size at current DPI using full output area.
+    const minOuterPx = minCodePx;
     const minOuterIn = minOuterPx / dpi;
     const minOuterMm = minOuterIn * 25.4;
 
     return invalid(
-      `QR is too dense for the selected size/margin/DPI. Increase size, reduce margin, reduce payload length, or increase DPI.`,
+      `QR is too dense for the selected size/DPI. Increase size, reduce payload length, or increase DPI.`,
       {
         pixelWidth,
         pixelHeight,
-        marginPx,
-        innerW,
-        innerH,
         codePx,
         moduleCount: n,
         scale,

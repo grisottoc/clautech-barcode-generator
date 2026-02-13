@@ -1,5 +1,4 @@
 import type { Job } from "../shared/types";
-import { computePixelSize } from "../shared/units";
 // import { PNG } from "pngjs";
 import UPNG from "upng-js";
 
@@ -93,39 +92,9 @@ export async function exportPngFromRgba(input: RasterInput): Promise<Uint8Array>
 }
 
 
-/**
- * Computes final pixel size using computePixelSize(job.size)
- * Converts physical margin -> pixels deterministically using computePixelSize (locked rounding behavior)
- * Creates white background
- * Centers code bitmap at (marginPx, marginPx)
- * Throws if code + margin cannot fit OR if code does not match expected inner area
- * Returns PNG Uint8Array
- */
 export async function renderMarginAndExport(job: Job, code: RasterInput): Promise<Uint8Array> {
-  const { unit, width, height, dpi } = job.size;
-
-  const finalPx = computePixelSize({ unit, width, height }, dpi);
-  const finalW = finalPx.pixelWidth;
-  const finalH = finalPx.pixelHeight;
-
-  // Margin (physical) -> pixels using computePixelSize to inherit locked rounding.
-  const mVal = job.margin.value;
-  const mPx = computePixelSize({ unit, width: mVal, height: mVal }, dpi).pixelWidth;
-
-  if (mPx < 0) throw new Error(`Invalid margin pixels: ${mPx}`);
-
-  const innerW = finalW - 2 * mPx;
-  const innerH = finalH - 2 * mPx;
-
-  if (innerW <= 0 || innerH <= 0) {
-    throw new Error(`Margin too large: inner area ${innerW}x${innerH} px`);
-  }
-
-  if (code.width !== innerW || code.height !== innerH) {
-    throw new Error(
-      `Code raster size mismatch. Expected ${innerW}x${innerH} px, got ${code.width}x${code.height} px`
-    );
-  }
+  // Export should be EXACTLY the code raster dimensions.
+  // Job.size and Job.margin must NOT affect output dimensions in this mode.
 
   const expectedLen = code.width * code.height * 4;
   if (code.data.length !== expectedLen) {
@@ -136,21 +105,5 @@ export async function renderMarginAndExport(job: Job, code: RasterInput): Promis
   const codeBW = thresholdToMonochromeRGBA(code.data);
   assertMonochromeRGBA(codeBW);
 
-  // Final RGBA buffer: white background, opaque.
-  const out = new Uint8Array(finalW * finalH * 4);
-  for (let i = 0; i < out.length; i += 4) {
-    out[i] = 255;
-    out[i + 1] = 255;
-    out[i + 2] = 255;
-    out[i + 3] = 255;
-  }
-
-  // Copy code into final buffer at offset (mPx, mPx)
-  for (let y = 0; y < innerH; y++) {
-    const srcRowStart = y * innerW * 4;
-    const dstRowStart = ((y + mPx) * finalW + mPx) * 4;
-    out.set(codeBW.subarray(srcRowStart, srcRowStart + innerW * 4), dstRowStart);
-  }
-
-  return exportPngFromRgba({ width: finalW, height: finalH, data: out });
+  return exportPngFromRgba({ width: code.width, height: code.height, data: codeBW });
 }

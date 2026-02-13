@@ -1,7 +1,7 @@
 // /generator/qr.ts
 
 import type { Job } from "../shared/types";
-import { computePixelSize, toPixels, inToMm } from "../shared/units";
+import { computePixelSize, inToMm } from "../shared/units";
 import QRCode from "qrcode";
 
 export interface RasterInput {
@@ -17,8 +17,8 @@ export interface RasterInput {
 const MIN_MODULE_PX = 4;
 
 /**
- * Generate a QR code raster for the inner printable area (no margin baked in).
- * The returned raster is exactly innerW x innerH; when inner area is rectangular,
+ * Generate a QR code raster for the full output area.
+ * The returned raster is exactly pixelWidth x pixelHeight; when area is rectangular,
  * the square QR is centered on a white background.
  */
 export async function generateQrRaster(job: Job): Promise<RasterInput> {
@@ -30,16 +30,7 @@ export async function generateQrRaster(job: Job): Promise<RasterInput> {
   }
 
   const { pixelWidth, pixelHeight } = computePixelSize(job.size, job.size.dpi);
-  const marginPx = Math.round(toPixels(job.margin.value, job.size.unit, job.size.dpi));
-
-  const innerW = pixelWidth - 2 * marginPx;
-  const innerH = pixelHeight - 2 * marginPx;
-
-  if (innerW <= 0 || innerH <= 0) {
-    throw new Error("generateQrRaster: code area <= 0 after margins");
-  }
-
-  const codePx = Math.min(innerW, innerH);
+  const codePx = Math.min(pixelWidth, pixelHeight);
 
   // Build module matrix (deterministic for same payload/options)
   const qr = QRCode.create(job.payload, {
@@ -69,7 +60,7 @@ export async function generateQrRaster(job: Job): Promise<RasterInput> {
         : `${minMmStr} (~${minInStr})`;
 
     throw new Error(
-      `generateQrRaster: QR too small for payload at current size/margin. ` +
+      `generateQrRaster: QR too small for payload at current size. ` +
         `Need at least ${minCodePx}px code area (>= ${MIN_MODULE_PX}px/module), ` +
         `which is about ${suggestion} at ${job.size.dpi} DPI.`
     );
@@ -112,8 +103,8 @@ export async function generateQrRaster(job: Job): Promise<RasterInput> {
   }
 
   const qrSquare: RasterInput = { width: codePx, height: codePx, data: qrData };
-  const outW = innerW;
-  const outH = innerH;
+  const outW = pixelWidth;
+  const outH = pixelHeight;
   const out = new Uint8Array(outW * outH * 4);
 
   for (let i = 0; i < out.length; i += 4) {

@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { generateQrRaster } from "../qr";
 import type { Job } from "../../shared/types";
-import { computePixelSize, toPixels } from "../../shared/units";
+import { computePixelSize } from "../../shared/units";
 
 function makeJob(partial?: Partial<Job>): Job {
   const now = new Date().toISOString();
@@ -43,9 +43,8 @@ function expectStrictMonochromeRGBA(buf: Uint8Array) {
 
 describe("generateQrRaster", () => {
   it("produces RGBA buffer with correct length and strict monochrome", async () => {
-    // Use a sane margin in inches to avoid crushing the code area.
     const job = makeJob({
-      margin: { value: 0.04 }, // ~1mm in inches
+      margin: { value: 0.04 },
       payload: "https://example.com",
     });
 
@@ -71,27 +70,24 @@ describe("generateQrRaster", () => {
     expect(Buffer.from(a.data).equals(Buffer.from(b.data))).toBe(true);
   });
 
-  it("returns inner-area-sized raster for rectangular jobs", async () => {
+  it("returns full pixel-sized raster for rectangular jobs", async () => {
     const job = makeJob({
-      margin: { value: 0.04 }, // ~1mm in inches
+      margin: { value: 0.04 },
       size: { unit: "in", width: 2, height: 1, dpi: 300 },
       payload: "SIZE_TEST",
     });
 
     const { pixelWidth, pixelHeight } = computePixelSize(job.size, job.size.dpi);
-    const marginPx = Math.round(toPixels(job.margin.value, job.size.unit, job.size.dpi));
-    const innerW = pixelWidth - 2 * marginPx;
-    const innerH = pixelHeight - 2 * marginPx;
 
     const raster = await generateQrRaster(job);
-    expect(raster.width).toBe(innerW);
-    expect(raster.height).toBe(innerH);
-    expect(raster.data.length).toBe(innerW * innerH * 4);
+    expect(raster.width).toBe(pixelWidth);
+    expect(raster.height).toBe(pixelHeight);
+    expect(raster.data.length).toBe(pixelWidth * pixelHeight * 4);
     expectStrictMonochromeRGBA(raster.data);
   });
 
   it("throws a friendly error when modules would be too small", async () => {
-    // Intentionally tiny code area: 0.2in square at 203 DPI with modest margin.
+    // Intentionally tiny output: 0.2in square at 203 DPI.
     // This should force scale < MIN_MODULE_PX for typical payload density.
     const job = makeJob({
       size: { unit: "in", width: 0.2, height: 0.2, dpi: 203 },
