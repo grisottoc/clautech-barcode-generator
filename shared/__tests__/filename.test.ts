@@ -45,7 +45,7 @@ describe("slugifyPayload (filename behavior contract)", () => {
 });
 
 describe("suggestPngFilename (stable naming)", () => {
-  it("formats deterministic name including size, dpi, and margin", () => {
+  it("formats deterministic payload-only name", () => {
     const job = makeJob({
       symbology: "qr",
       payload: "https://example.com",
@@ -53,13 +53,13 @@ describe("suggestPngFilename (stable naming)", () => {
       margin: { value: 0.04 },
     });
 
-    expect(suggestPngFilename(job)).toBe("QR_httpsexample.com_1x1in_600dpi_m0.04in.png");
+    expect(suggestPngFilename(job)).toBe("httpsexample.com.png");
 
   });
 
-  it("uses fallback 'payload' if slug becomes empty", () => {
+  it("uses fallback 'code' if slug becomes empty", () => {
     const job = makeJob({ payload: `<>:"/\\|?*` });
-    expect(suggestPngFilename(job)).toContain("_payload_");
+    expect(suggestPngFilename(job)).toBe("code.png");
   });
 
   it("does not output a reserved Windows device name as the entire base", () => {
@@ -75,7 +75,7 @@ describe("suggestPngFilename (stable naming)", () => {
     expect(name.length).toBeLessThanOrEqual(120 + ".png".length);
   });
 
-  it("formats decimals with max 3 places and trims zeros", () => {
+  it("uses slugified payload regardless of size/dpi/margin metadata", () => {
     const job = makeJob({
       symbology: "datamatrix",
       payload: "PART 12345",
@@ -83,6 +83,6 @@ describe("suggestPngFilename (stable naming)", () => {
       margin: { value: 1.0 },
     });
 
-    expect(suggestPngFilename(job)).toBe("DM_PART_12345_25.4x25.4mm_300dpi_m1mm.png");
+    expect(suggestPngFilename(job)).toBe("PART_12345.png");
   });
 });

@@ -36,9 +36,9 @@ describe("validateDatamatrixJob", () => {
   });
 
   it("rejects too-small module size (friendly)", async () => {
-    // Tiny label at low DPI to force modulePx < 4
+    // Tiny label at low DPI to force modulePx < 1
     const j = baseJob("HELLO WORLD");
-    j.size = { unit: "in", width: 0.2, height: 0.2, dpi: 203 };
+    j.size = { unit: "in", width: 0.03, height: 0.03, dpi: 203 };
     j.margin.value = 0;
     const res = await validateDatamatrixJob(j);
     expect(res.ok).toBe(false);

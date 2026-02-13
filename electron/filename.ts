@@ -2,7 +2,7 @@
 // Deterministic filename suggestion helpers (no filesystem access).
 // Keep format stable once released.
 
-import type { Job, Unit } from "../shared/types";
+import type { Job } from "../shared/types";
 
 const WIN_RESERVED = new Set([
   "con", "prn", "aux", "nul",
@@ -14,40 +14,19 @@ const MAX_BASE_LEN = 120;
 const MAX_PAYLOAD_SLUG = 60;
 
 export function suggestPngFilename(job: Job): string {
-  const type = symLabel(job.symbology);
-  const payload = slugifyPayload(job.payload) || "payload";
-  const size = formatSize(job.size.width, job.size.height, job.size.unit);
-  const dpi = Math.round(job.size.dpi);
-  const margin = formatMargin(job.margin.value, job.size.unit);
+  const payload = slugifyPayload(job.payload) || "code";
 
-  let base = `${type}_${payload}_${size}_${dpi}dpi_${margin}`;
-  base = sanitizeBase(base);
+  let base = sanitizeBase(payload);
 
   if (base.length > MAX_BASE_LEN) {
     base = base.slice(0, MAX_BASE_LEN).replace(/[.\s]+$/g, "");
   }
 
   if (WIN_RESERVED.has(base.toLowerCase())) {
-    base = `${type}_${base}_`;
+    base = `${base}_`;
   }
 
   return `${base}.png`;
-}
-
-function symLabel(s: Job["symbology"]): string {
-  return s === "qr" ? "QR" : s === "datamatrix" ? "DM" : "C128";
-}
-
-function formatSize(w: number, h: number, u: Unit): string {
-  return `${fmt(w)}x${fmt(h)}${u}`;
-}
-
-function formatMargin(v: number, u: Unit): string {
-  return `m${fmt(v)}${u}`;
-}
-
-function fmt(n: number): string {
-  return n.toFixed(3).replace(/\.?0+$/, "");
 }
 
 /**

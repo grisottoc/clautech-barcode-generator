@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import UPNG from "upng-js";
 import type { Job } from "../../shared/types";
-import { computePixelSize } from "../../shared/units";
 import { renderMarginAndExport, thresholdToMonochromeRGBA, assertMonochromeRGBA } from "../png";
 
 function makeJob(partial?: Partial<Job>): Job {
@@ -40,36 +39,27 @@ describe("export/png", () => {
     expect(bw[7]).toBe(255);
   });
 
-it("renderMarginAndExport returns a valid PNG with correct dimensions", async () => {
+it("renderMarginAndExport returns a valid PNG sized exactly to code raster", async () => {
   const job = makeJob({
     size: { unit: "in", width: 1, height: 1, dpi: 300 },
-    margin: { value: 1 / 25.4 }, // ~1mm in inches
+    margin: { value: 1 / 25.4 }, // ignored by export sizing contract
   });
 
-  const { pixelWidth, pixelHeight } = computePixelSize(job.size, job.size.dpi);
-
-  // Your implementation uses computePixelSize on the margin value to get pixels.
-  // Mirror that logic so the test matches the contract.
-  const marginPx = computePixelSize(
-    { unit: job.size.unit, width: job.margin.value, height: job.margin.value, dpi: job.size.dpi } as any,
-    job.size.dpi
-  ).pixelWidth;
-
-  const innerW = pixelWidth - 2 * marginPx;
-  const innerH = pixelHeight - 2 * marginPx;
+  const codeW = 73;
+  const codeH = 41;
 
   // Create a correctly sized "code" raster: white background with a small black block
-  const code = new Uint8Array(innerW * innerH * 4);
+  const code = new Uint8Array(codeW * codeH * 4);
   code.fill(255);
 
   // Put a black square in the center so we can assert black pixels exist
-  const block = Math.max(4, Math.floor(Math.min(innerW, innerH) / 10));
-  const startX = Math.floor(innerW / 2 - block / 2);
-  const startY = Math.floor(innerH / 2 - block / 2);
+  const block = Math.max(4, Math.floor(Math.min(codeW, codeH) / 10));
+  const startX = Math.floor(codeW / 2 - block / 2);
+  const startY = Math.floor(codeH / 2 - block / 2);
 
   for (let y = 0; y < block; y++) {
     for (let x = 0; x < block; x++) {
-      const px = (startY + y) * innerW + (startX + x);
+      const px = (startY + y) * codeW + (startX + x);
       const i = px * 4;
       code[i + 0] = 0;
       code[i + 1] = 0;
@@ -78,7 +68,7 @@ it("renderMarginAndExport returns a valid PNG with correct dimensions", async ()
     }
   }
 
-  const pngBytes = await renderMarginAndExport(job, { width: innerW, height: innerH, data: code });
+  const pngBytes = await renderMarginAndExport(job, { width: codeW, height: codeH, data: code });
 
   // PNG signature
   expect(pngBytes[0]).toBe(0x89);
@@ -89,8 +79,8 @@ it("renderMarginAndExport returns a valid PNG with correct dimensions", async ()
   const decoded = UPNG.decode(
     pngBytes.buffer.slice(pngBytes.byteOffset, pngBytes.byteOffset + pngBytes.byteLength)
   );
-  expect(decoded.width).toBe(pixelWidth);
-  expect(decoded.height).toBe(pixelHeight);
+  expect(decoded.width).toBe(codeW);
+  expect(decoded.height).toBe(codeH);
 
   // Decode RGBA and assert strict monochrome
   const rgba = UPNG.toRGBA8(decoded)[0];

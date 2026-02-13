@@ -1,6 +1,6 @@
 // /generator/datamatrix.ts
 import type { Job } from "../shared/types";
-import { computePixelSize, toPixels } from "../shared/units";
+import { computePixelSize } from "../shared/units";
 import * as bwipjs from "bwip-js";
 import UPNG from "upng-js";
 
@@ -28,66 +28,12 @@ function normalizedSize(job: Job) {
   };
 }
 
-function fillWhiteRGBA(buf: Uint8Array) {
-  for (let i = 0; i < buf.length; i += 4) {
-    buf[i + 0] = 255;
-    buf[i + 1] = 255;
-    buf[i + 2] = 255;
-    buf[i + 3] = 255;
-  }
-}
-
-function thresholdToMonochromeRGBA(src: Uint8Array, dst: Uint8Array) {
-  const n = Math.min(src.length, dst.length);
-  for (let i = 0; i < n; i += 4) {
-    const r = src[i + 0];
-    const g = src[i + 1];
-    const b = src[i + 2];
-    const y = (r + g + b) / 3;
-    const v = y < THRESHOLD ? 0 : 255;
-
-    dst[i + 0] = v;
-    dst[i + 1] = v;
-    dst[i + 2] = v;
-    dst[i + 3] = 255;
-  }
-}
-
 function hasDomCanvas(): boolean {
   return typeof document !== "undefined" && typeof document.createElement === "function";
 }
 
 function asArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-}
-
-/**
- * Probe module dimensions (scale=1 => width/height ~= module count).
- */
-async function probeModules(payload: string): Promise<{ modulesW: number; modulesH: number }> {
-  if (hasDomCanvas()) {
-    const canvas = document.createElement("canvas");
-    bwipjs.toCanvas(canvas, {
-      bcid: "datamatrix",
-      text: payload,
-      scale: 1,
-      padding: 0,
-      includetext: false,
-      backgroundcolor: "FFFFFF",
-    });
-    return { modulesW: canvas.width, modulesH: canvas.height };
-  }
-
-  const pngBuf = await bwipjs.toBuffer({
-    bcid: "datamatrix",
-    text: payload,
-    scale: 1,
-    padding: 0,
-    includetext: false,
-    backgroundcolor: "FFFFFF",
-  });
-  const decoded = UPNG.decode(asArrayBuffer(pngBuf));
-  return { modulesW: decoded.width, modulesH: decoded.height };
 }
 
 /**
@@ -131,9 +77,86 @@ async function renderSymbolRGBA(payload: string, scale: number): Promise<{ w: nu
   return { w: decoded.width, h: decoded.height, rgba: new Uint8Array(rgba) };
 }
 
+function isBlackAt(rgba: Uint8Array, i: number): boolean {
+  const y = (rgba[i + 0] + rgba[i + 1] + rgba[i + 2]) / 3;
+  return y < THRESHOLD && rgba[i + 3] === 255;
+}
+
+function rowHasBlack(bits: Uint8Array, stride: number, y: number, left: number, right: number): boolean {
+  const base = y * stride;
+  for (let x = left; x <= right; x++) {
+    if (bits[base + x] === 1) return true;
+  }
+  return false;
+}
+
+function colHasBlack(bits: Uint8Array, stride: number, x: number, top: number, bottom: number): boolean {
+  for (let y = top; y <= bottom; y++) {
+    if (bits[y * stride + x] === 1) return true;
+  }
+  return false;
+}
+
+function extractTightBounds(bits: Uint8Array, w: number, h: number) {
+  let left = 0;
+  let right = w - 1;
+  let top = 0;
+  let bottom = h - 1;
+
+  while (top <= bottom && !rowHasBlack(bits, w, top, left, right)) top++;
+  while (bottom >= top && !rowHasBlack(bits, w, bottom, left, right)) bottom--;
+  while (left <= right && !colHasBlack(bits, w, left, top, bottom)) left++;
+  while (right >= left && !colHasBlack(bits, w, right, top, bottom)) right--;
+
+  if (left > right || top > bottom) {
+    throw new Error("generateDatamatrixRaster: encoded symbol has no black modules");
+  }
+
+  return { left, top, width: right - left + 1, height: bottom - top + 1 };
+}
+
+async function extractModuleMatrix(payload: string): Promise<{ modules: number; bits: Uint8Array }> {
+  const sym = await renderSymbolRGBA(payload, 1);
+  const bits = new Uint8Array(sym.w * sym.h);
+
+  for (let y = 0; y < sym.h; y++) {
+    for (let x = 0; x < sym.w; x++) {
+      const i = (y * sym.w + x) * 4;
+      bits[y * sym.w + x] = isBlackAt(sym.rgba, i) ? 1 : 0;
+    }
+  }
+
+  const b = extractTightBounds(bits, sym.w, sym.h);
+  if (b.width !== b.height) {
+    throw new Error(
+      `generateDatamatrixRaster: expected square module matrix, got ${b.width}x${b.height}`
+    );
+  }
+
+  const modules = b.width;
+  const matrix = new Uint8Array(modules * modules);
+
+  for (let y = 0; y < modules; y++) {
+    for (let x = 0; x < modules; x++) {
+      matrix[y * modules + x] = bits[(b.top + y) * sym.w + (b.left + x)] ?? 0;
+    }
+  }
+
+  return { modules, bits: matrix };
+}
+
+function fillWhiteOpaque(buf: Uint8Array) {
+  for (let i = 0; i < buf.length; i += 4) {
+    buf[i + 0] = 255;
+    buf[i + 1] = 255;
+    buf[i + 2] = 255;
+    buf[i + 3] = 255;
+  }
+}
+
 /**
- * Generate a Data Matrix raster (no margin baked in).
- * Returns EXACTLY innerW x innerH, with a centered square symbol padded as needed.
+ * Generate a tight Data Matrix raster from origin using integer module scaling.
+ * No centering, no padding, no post-trim.
  */
 export async function generateDatamatrixRaster(job: Job): Promise<RasterInput> {
   if (job.symbology !== "datamatrix") {
@@ -145,59 +168,47 @@ export async function generateDatamatrixRaster(job: Job): Promise<RasterInput> {
 
   const size = normalizedSize(job);
   const { pixelWidth, pixelHeight } = computePixelSize(size, size.dpi);
-
-  const marginVal = job.margin?.value ?? 0;
-  if (typeof marginVal !== "number" || !Number.isFinite(marginVal) || marginVal < 0) {
-    throw new Error("generateDatamatrixRaster: margin must be a finite number >= 0");
-  }
-  const marginPx = marginVal > 0 ? toPixels(marginVal, size.unit, size.dpi) : 0;
-
-  const innerW = pixelWidth - 2 * marginPx;
-  const innerH = pixelHeight - 2 * marginPx;
-
-  if (innerW <= 0 || innerH <= 0) {
-    throw new Error("generateDatamatrixRaster: inner size must be > 0 after margins");
+  const targetSquarePx = Math.min(pixelWidth, pixelHeight);
+  if (targetSquarePx <= 0) {
+    throw new Error("generateDatamatrixRaster: output area too small");
   }
 
-  const squarePx = Math.min(innerW, innerH);
-
-  const { modulesW, modulesH } = await probeModules(job.payload);
-  const modules = Math.max(modulesW, modulesH);
+  const { modules, bits } = await extractModuleMatrix(job.payload);
   if (!Number.isFinite(modules) || modules <= 0) {
-    throw new Error("generateDatamatrixRaster: unable to determine module dimensions");
+    throw new Error("generateDatamatrixRaster: invalid module matrix size");
   }
 
-  const scale = Math.max(1, Math.floor(squarePx / modules));
-  const sym = await renderSymbolRGBA(job.payload, scale);
+  const modulePx = Math.floor(targetSquarePx / modules);
+  if (modulePx < 1) {
+    throw new Error("generateDatamatrixRaster: output area too small for payload");
+  }
 
-  const out = new Uint8Array(innerW * innerH * 4);
-  fillWhiteRGBA(out);
+  const finalW = modules * modulePx;
+  const finalH = modules * modulePx;
+  const out = new Uint8Array(finalW * finalH * 4);
+  fillWhiteOpaque(out);
 
-  const monoSym = new Uint8Array(sym.w * sym.h * 4);
-  thresholdToMonochromeRGBA(sym.rgba, monoSym);
+  for (let my = 0; my < modules; my++) {
+    for (let mx = 0; mx < modules; mx++) {
+      if (bits[my * modules + mx] !== 1) continue;
 
-  const squareX = Math.floor((innerW - squarePx) / 2);
-  const squareY = Math.floor((innerH - squarePx) / 2);
-  const symX = squareX + Math.floor((squarePx - sym.w) / 2);
-  const symY = squareY + Math.floor((squarePx - sym.h) / 2);
+      const x0 = mx * modulePx;
+      const y0 = my * modulePx;
 
-  for (let y = 0; y < sym.h; y++) {
-    const dy = symY + y;
-    if (dy < 0 || dy >= innerH) continue;
-
-    for (let x = 0; x < sym.w; x++) {
-      const dx = symX + x;
-      if (dx < 0 || dx >= innerW) continue;
-
-      const si = (y * sym.w + x) * 4;
-      const di = (dy * innerW + dx) * 4;
-
-      out[di + 0] = monoSym[si + 0];
-      out[di + 1] = monoSym[si + 1];
-      out[di + 2] = monoSym[si + 2];
-      out[di + 3] = 255;
+      for (let py = 0; py < modulePx; py++) {
+        const y = y0 + py;
+        const row = y * finalW;
+        for (let px = 0; px < modulePx; px++) {
+          const x = x0 + px;
+          const i = (row + x) * 4;
+          out[i + 0] = 0;
+          out[i + 1] = 0;
+          out[i + 2] = 0;
+          out[i + 3] = 255;
+        }
+      }
     }
   }
 
-  return { width: innerW, height: innerH, data: out };
+  return { width: finalW, height: finalH, data: out };
 }

@@ -292,6 +292,8 @@
 // /renderer/App.tsx
 import { useEffect, useState } from "react";
 import type { HistoryItem, Job, Preset, Symbology } from "../shared/types";
+import { validateCode128Job } from "../validation/code128";
+import { generateCode128Raster } from "../generator/code128";
 import { generateQrRaster } from "../generator/qr";
 import { generateDatamatrixRaster } from "../generator/datamatrix";
 import { renderMarginAndExport } from "../export/png";
@@ -334,7 +336,7 @@ function buildJob(payload: string, symbology: Symbology = "qr"): Job {
 }
 
 export default function App() {
-  const [job, setJob] = useState<Job>(() => buildJob("HELLO WORLD", "qr"));
+  const [job, setJob] = useState<Job>(() => buildJob("p/n: ; s/n: ; cage: 1mpt3", "qr"));
   const [pngBytes, setPngBytes] = useState<Uint8Array | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -380,6 +382,14 @@ export default function App() {
             throw new Error(v.error.message);
           }
           raster = await generateDatamatrixRaster(job);
+          
+        } else if (job.symbology === "code128") {
+          const v = validateCode128Job(job);
+          if (!v.ok) {
+            throw new Error(v.error.message);
+          }
+          raster = await generateCode128Raster(job);
+
         } else {
           throw new Error("Barcode tab not implemented yet.");
         }
@@ -517,8 +527,6 @@ export default function App() {
         <button
           onClick={() => setSymbology("code128")}
           aria-pressed={job.symbology === "code128"}
-          disabled
-          title="Not implemented yet"
         >
           Barcode
         </button>
