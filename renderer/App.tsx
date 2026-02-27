@@ -540,6 +540,11 @@ const SYMBOLOGY_SWITCH_CARDS: ReadonlyArray<{
   { symbology: "code128", label: "Barcode 128", subtitle: "Linear high-density barcode" },
   { symbology: "qr", label: "QR Code", subtitle: "General purpose matrix code" },
 ];
+const DEFAULT_MODULE_CARD = {
+  symbology: "datamatrix" as const,
+  label: "Data Matrix",
+  subtitle: "( ECC 200 DATA MATRIX )",
+};
 
 function isPresetDpi(value: number): boolean {
   return DPI_OPTIONS.includes(value as (typeof DPI_OPTIONS)[number]);
@@ -674,7 +679,8 @@ function buildPresetNameFromJob(job: Job): string {
 function getFileNameFromPath(savedPath?: string): string | null {
   if (!savedPath) return null;
   const parts = savedPath.split(/[\\/]/).filter(Boolean);
-  return parts.length > 0 ? parts[parts.length - 1] : null;
+  if (parts.length === 0) return null;
+  return parts[parts.length - 1] ?? null;
 }
 
 function buildHistoryLabel(item: HistoryItem): string {
@@ -993,7 +999,7 @@ export default function App() {
   const isQr = job.symbology === "qr";
   const activeModuleCard =
     SYMBOLOGY_SWITCH_CARDS.find((card) => card.symbology === job.symbology) ??
-    SYMBOLOGY_SWITCH_CARDS[0];
+    DEFAULT_MODULE_CARD;
   const activePreviewBoxStyle: CSSProperties = isCode128
     ? { width: "min(690px, 100%)", aspectRatio: "690 / 342" }
     : { width: "min(342px, 100%)", aspectRatio: "1 / 1" };

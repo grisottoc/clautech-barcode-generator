@@ -195,7 +195,7 @@ export async function generateCode128Raster(job: Job): Promise<RasterInput> {
 
   // Strict mono guarantee
   for (let i = 0; i < data.length; i += 4) {
-    const mono = data[i] < 128 ? BLACK : WHITE;
+    const mono = (data[i] ?? WHITE) < 128 ? BLACK : WHITE;
     data[i + 0] = mono;
     data[i + 1] = mono;
     data[i + 2] = mono;

@@ -87,10 +87,10 @@ describe("generateDatamatrixRaster", () => {
     const r = await generateDatamatrixRaster(job);
 
     for (let i = 0; i < r.data.length; i += 4) {
-      expect(isStrictMono(r.data[i + 0])).toBe(true);
-      expect(isStrictMono(r.data[i + 1])).toBe(true);
-      expect(isStrictMono(r.data[i + 2])).toBe(true);
-      expect(r.data[i + 3]).toBe(255);
+      expect(isStrictMono(r.data[i + 0] ?? 0)).toBe(true);
+      expect(isStrictMono(r.data[i + 1] ?? 0)).toBe(true);
+      expect(isStrictMono(r.data[i + 2] ?? 0)).toBe(true);
+      expect(r.data[i + 3] ?? 0).toBe(255);
     }
   });
 

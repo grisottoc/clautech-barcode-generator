@@ -1,7 +1,7 @@
 // /validation/datamatrix.ts
 import type { Job } from "../shared/types";
 import { computePixelSize } from "../shared/units";
-import * as bwipjs from "bwip-js";
+import bwipjs from "bwip-js";
 import UPNG from "upng-js";
 
 const THRESHOLD = 128;
@@ -34,7 +34,7 @@ function hasDomCanvas(): boolean {
 }
 
 function asArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
 async function renderSymbolRGBA(
@@ -54,7 +54,6 @@ async function renderSymbolRGBA(
 
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) throw new Error("datamatrix: unable to acquire 2D context");
-    // @ts-expect-error compatibility across canvas implementations
     ctx.imageSmoothingEnabled = false;
 
     const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -79,8 +78,8 @@ async function renderSymbolRGBA(
 }
 
 function isBlackAt(rgba: Uint8Array, i: number): boolean {
-  const y = (rgba[i + 0] + rgba[i + 1] + rgba[i + 2]) / 3;
-  return y < THRESHOLD && rgba[i + 3] === 255;
+  const y = ((rgba[i + 0] ?? 0) + (rgba[i + 1] ?? 0) + (rgba[i + 2] ?? 0)) / 3;
+  return y < THRESHOLD && (rgba[i + 3] ?? 0) === 255;
 }
 
 function rowHasBlack(bits: Uint8Array, stride: number, y: number, left: number, right: number): boolean {
