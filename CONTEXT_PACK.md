@@ -1,233 +1,78 @@
-# CONTEXT_PACK.md
-ClautechBarCodeGenerator — Authoritative Repo Context
-
-<!-- ------------------------------------------------------------------------------------ -->
-
-## 1) Repository Identity
-
-- **Repo:** clautech-barcode-generator
-- **Owner:** grisottoc
-- **Purpose:** Internal, offline desktop app to generate **high-resolution, monochrome PNG**
-  QR codes, Data Matrix codes, and barcodes for professional label/design workflows.
-- **Visibility:** Private
-- **Primary branch:** main
-- **Target release:** v0.1.0 (non-breaking feature release)
-
-<!-- ------------------------------------------------------------------------------------ -->
-
-## 2) Locked Folder Structure (DO NOT CHANGE)
-
-This structure is canonical and enforced.
-
-```text
-/electron
-  main.ts
-  preload.ts
-  fileSave.ts
-  filename.ts
-
-/renderer
-  index.html
-  main.tsx
-  App.tsx
-  assets/
-
-/shared
-  types.ts
-  units.ts
-  constants.ts
-
-/export
-/generator
-/validation
-/persistence
-/shortcuts
-
-/scripts
-  dev-clean.ps1
-
-README.md
-ARCHITECTURE.md
-DEVELOPMENT_PLAN.md
-INTEGRATION_CHECKLIST.md
-CONTEXT_PACK.md
-````
-
-<!-- ------------------------------------------------------------------------------------ -->
-
-## 2.1) Dev Scripts (REFERENCE)
-
-* `npm run dev` uses `scripts/dev-clean.ps1` to clear `ELECTRON_RUN_AS_NODE` before launching Electron.
-* `npm run dev:raw` runs `electron-vite dev` directly (no environment cleanup).
-
-<!-- ------------------------------------------------------------------------------------ -->
-
-## 3) Locked Shared Contracts (DO NOT REDEFINE)
-
-### Core unions
-
-```ts
-export type Symbology = "qr" | "datamatrix" | "code128";
-export type Unit = "in" | "mm";
-```
-
-### Job (canonical)
-
-```ts
-export interface Job {
-  id: string;
-  symbology: Symbology;
-  payload: string;
-
-  size: {
-    unit: Unit;
-    width: number;
-    height: number;
-    dpi: number;
-  };
-
-  margin: {
-    value: number; // physical, same unit as size.unit
-  };
-
-  createdAt: string; // ISO
-  updatedAt: string; // ISO
-}
-```
-
-### Error contract
-
-```ts
-export type AppErrorCode =
-  | "INVALID_INPUT"
-  | "UNSUPPORTED_SYMBOLOGY"
-  | "GENERATION_FAILED"
-  | "EXPORT_FAILED"
-  | "INTERNAL_ERROR";
-
-export interface AppError {
-  code: AppErrorCode;
-  message: string;
-  details?: Record<string, unknown>;
-}
-```
-
-### Save As result (IPC)
-
-```ts
-export type SaveAsResult =
-  | { ok: true; path: string }
-  | { ok: false; reason: "canceled" }
-  | { ok: false; reason: "error"; error: AppError };
-```
-
-**Rules**
-
-* Cancel is not an error.
-* Cancel must never throw.
-* Shared contract changes are breaking by default unless explicitly approved.
-
-<!-- ------------------------------------------------------------------------------------ -->
-
-## 4) Locked IPC APIs (Renderer → Main)
-
-Exposed via `preload.ts` as `window.api`:
-
-```ts
-ping(): Promise<string>
-
-saveAsPng(
-  job: Job,
-  pngData: Uint8Array
-): Promise<SaveAsResult>
-
-savePng(
-  path: string,
-  pngData: Uint8Array
-): Promise<void>
-```
-
-**Renderer must never touch filesystem APIs.**
-
-<!-- ------------------------------------------------------------------------------------ -->
-
-## 5) Locked Filename Policy (PNG Export)
-
-### Format
-
-```text
-TYPE_payloadSlug_WxHunit_dpipi_m<margin><unit>.png
-```
-
-### Examples
-
-* `QR_httpsexample.com_1x1in_600dpi_m0.04in.png`
-* `DM_PART123_25.4x25.4mm_300dpi_m1mm.png`
-* `C128_ABC-001_2x1in_203dpi_m1mm.png`
-
-### Rules
-
-* Windows-safe (illegal characters removed)
-* Reserved device names avoided (CON, NUL, COM1, etc.)
-* No trailing dot or space
-* Aggressive length clamping
-* Behavior locked by tests
-
-<!-- ------------------------------------------------------------------------------------ -->
-
-## 6) Pixel Math (LOCKED)
-
-* Physical size + DPI → pixels via `/shared/units.ts`
-* Rounding uses `Math.round`
-* Margin is physical and converted using the same math
-* No module may re-implement mm/in → px logic
-
-<!-- ------------------------------------------------------------------------------------ -->
-
-## 7) Completed Modules (LOCKED)
-
-* Repo Skeleton & Build ✅
-* Shared Types & Units ✅
-* IPC Save As & File Write Pipeline ✅
-* PNG Monochrome Export Pipeline ✅
-
-<!-- ------------------------------------------------------------------------------------ -->
-
-## 8) Active / Upcoming Modules
-
-* QR Generator ⏳
-* Validation Layer ⏳
-* Presets & History ⏳
-* Templates ⏳
-* Shortcuts ⏳
-
-<!-- ------------------------------------------------------------------------------------ -->
-
-## 9) Mandatory Rules for All Module Chats
-
-When opening a new module chat:
-
-1. Paste this file (or reference it verbatim).
-2. Paste the current commit SHA (`git rev-parse HEAD`).
-3. Paste full source of any shared files the module depends on.
-4. The module may ONLY modify files listed in its Deliverables.
-5. Do not change:
-
-   * Electron security flags
-   * Folder structure
-   * Shared contracts (unless explicitly approved in the master chat)
-
-<!-- ------------------------------------------------------------------------------------ -->
-
-## 10) Quality Bar (NON-NEGOTIABLE)
-
-* Offline only
-* Deterministic outputs
-* PNG only
-* True monochrome (RGB = 0 or 255 only)
-* No image smoothing
-* Cancel never throws
-* Tests must remain green
-
-<!-- ------------------------------------------------------------------------------------ -->
-
+# Context Pack
+
+Repository snapshot for implementation and review alignment.
+
+## Identity
+
+- Repo: `clautech-barcode-generator`
+- Owner: `grisottoc`
+- Branch: `main`
+- App type: Offline desktop generator (Electron + React + TypeScript)
+- Purpose: Generate and export Data Matrix, Code128, and QR labels/codes
+
+## Core Capabilities
+
+- Live preview generation for:
+  - Data Matrix
+  - Code128
+  - QR
+- Validation before generation
+- Save As export in:
+  - PNG
+  - JPG
+  - BMP
+- Presets and history persisted locally
+- System-theme UI behavior
+
+## Canonical Shared Contracts
+
+Located in `shared/types.ts`:
+- `Symbology = "qr" | "datamatrix" | "code128"`
+- `Unit = "in" | "mm"`
+- `ImageFormat = "png" | "jpg" | "bmp"`
+- `Job`, `Preset`, `HistoryItem`, `SaveAsResult`, `AppError`
+
+## Runtime Layers
+
+- `electron/main.ts`
+  - Window lifecycle
+  - Save/export conversion
+  - Persistence IPC handlers
+- `electron/preload.ts`
+  - Safe typed bridge (`window.api`)
+- `renderer/App.tsx`
+  - UI state orchestration and user workflows
+- `generator/*`
+  - Symbology-specific raster generation
+- `validation/*`
+  - Input and density checks
+- `export/png.ts`
+  - Monochrome export composition
+- `persistence/*`
+  - Local JSON storage
+
+## Determinism Rules
+
+- Pixel math uses shared unit conversion helpers from `shared/units.ts`
+- Monochrome pipeline enforces strict black/white output values
+- Save cancel is represented as typed non-error result
+
+## Persistence Notes
+
+- Local store file: `store.json` in Electron userData directory
+- Atomic writes (temp file then rename)
+- Corrupt store fallback handled by rename + recreate
+- History capped at 50 entries
+
+## Current Quality Gates
+
+- Tests: `npm run test:run` (passing)
+- Build: `npm run build` currently failing due known TypeScript issues
+
+## Current Known Build Blockers
+
+- Missing/strict typing around `bwip-js` usage
+- ArrayBuffer typing mismatches in Data Matrix modules
+- Strict null checks in selected renderer/generator code paths
+
+See `DEVELOPMENT_PLAN.md` for tracked remediation order.
