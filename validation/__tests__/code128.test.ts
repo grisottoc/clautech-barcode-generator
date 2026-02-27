@@ -7,8 +7,8 @@ function baseJob(overrides: Partial<Job> = {}): Job {
   return {
     symbology: "code128",
     payload: "1234567890",
-    size: { unit: "in", width: 3, height: 1, dpi: 300 },
-    margin: { value: 0.1 },
+    size: { unit: "mm", width: 30, height: 6, dpi: 1200 },
+    margin: { value: 1 },
     ...overrides,
   } as Job;
 }
@@ -20,13 +20,29 @@ describe("validateCode128Job", () => {
   });
 
   it("rejects invalid dpi", () => {
-    const r = validateCode128Job(baseJob({ size: { unit: "in", width: 3, height: 1, dpi: 0 } as any }));
+    const r = validateCode128Job(baseJob({ size: { unit: "mm", width: 30, height: 6, dpi: 0 } as any }));
     expect(r.ok).toBe(false);
   });
 
   it("rejects invalid margin", () => {
-    const r = validateCode128Job(baseJob({ margin: { value: 2 } })); // > half height (1 in)
+    const r = validateCode128Job(baseJob({ margin: { value: 4 } })); // > half height (6 mm)
     expect(r.ok).toBe(false);
+  });
+
+  it("rejects width outside 20-50 mm", () => {
+    const r = validateCode128Job(baseJob({ size: { unit: "mm", width: 12, height: 6, dpi: 1200 } as any }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error.message).toContain("width");
+    }
+  });
+
+  it("rejects height outside 3-10 mm", () => {
+    const r = validateCode128Job(baseJob({ size: { unit: "mm", width: 30, height: 12, dpi: 1200 } as any }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error.message).toContain("height");
+    }
   });
 
   it("rejects too-small inner area with friendly error", () => {

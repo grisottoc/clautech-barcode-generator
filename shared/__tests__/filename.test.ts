@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vitest";
 
 import type { Job } from "../types";
-import { suggestPngFilename, slugifyPayload } from "../../electron/filename";
+import { suggestImageFilename, suggestPngFilename, slugifyPayload } from "../../electron/filename";
 
 function makeJob(overrides: Partial<Job> = {}): Job {
   const now = new Date("2026-02-03T00:00:00.000Z").toISOString();
@@ -84,5 +84,17 @@ describe("suggestPngFilename (stable naming)", () => {
     });
 
     expect(suggestPngFilename(job)).toBe("PART_12345.png");
+  });
+});
+
+describe("suggestImageFilename (format extension)", () => {
+  it("uses jpg extension when requested", () => {
+    const job = makeJob({ payload: "PART 12345" });
+    expect(suggestImageFilename(job, "jpg")).toBe("PART_12345.jpg");
+  });
+
+  it("uses bmp extension when requested", () => {
+    const job = makeJob({ payload: "PART 12345" });
+    expect(suggestImageFilename(job, "bmp")).toBe("PART_12345.bmp");
   });
 });

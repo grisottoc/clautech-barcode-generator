@@ -65,7 +65,7 @@ describe("generateDatamatrixRaster", () => {
     const r = await generateDatamatrixRaster(job);
     expect(r.width).toBeGreaterThan(0);
     expect(r.width).toBe(r.height);
-    expect(r.width).toBeLessThanOrEqual(targetSquarePx);
+    expect(r.width).toBe(targetSquarePx);
     expect(r.data.length).toBe(r.width * r.height * 4);
   });
 

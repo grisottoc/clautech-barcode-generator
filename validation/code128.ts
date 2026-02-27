@@ -1,10 +1,14 @@
 // /validation/code128.ts
 import type { Job } from "../shared/types";
-import { computePixelSize, toPixels } from "../shared/units";
+import { computePixelSize } from "../shared/units";
 import JsBarcode from "jsbarcode";
 
 const MIN_BAR_PX = 2;
 const MAX_PAYLOAD_LEN = 256;
+const CODE128_MIN_WIDTH_MM = 20;
+const CODE128_MAX_WIDTH_MM = 50;
+const CODE128_MIN_HEIGHT_MM = 3;
+const CODE128_MAX_HEIGHT_MM = 10;
 
 export type Result<T> =
   | { ok: true; value: T }
@@ -178,6 +182,22 @@ export function validateCode128Job(job: Job): Result<void> {
       return fail("unit", "Unit must be 'in' or 'mm'.");
     }
 
+    const widthMm = unit === "mm" ? width : width * 25.4;
+    const heightMm = unit === "mm" ? height : height * 25.4;
+
+    if (widthMm < CODE128_MIN_WIDTH_MM || widthMm > CODE128_MAX_WIDTH_MM) {
+      return fail(
+        "size",
+        `Code 128 width must be between ${CODE128_MIN_WIDTH_MM} and ${CODE128_MAX_WIDTH_MM} mm.`
+      );
+    }
+    if (heightMm < CODE128_MIN_HEIGHT_MM || heightMm > CODE128_MAX_HEIGHT_MM) {
+      return fail(
+        "size",
+        `Code 128 height must be between ${CODE128_MIN_HEIGHT_MM} and ${CODE128_MAX_HEIGHT_MM} mm.`
+      );
+    }
+
     const marginVal = job.margin?.value ?? 0;
     if (typeof marginVal !== "number" || !Number.isFinite(marginVal) || marginVal < 0) {
       return fail("margin", "Margin must be a number >= 0.");
@@ -187,10 +207,10 @@ export function validateCode128Job(job: Job): Result<void> {
     }
 
     const { pixelWidth, pixelHeight } = computePixelSize(size, dpi);
-    const marginPx = marginVal > 0 ? toPixels(marginVal, unit, dpi) : 0;
+    const marginPx = 0;
 
-    const innerW = pixelWidth - 2 * marginPx;
-    const innerH = pixelHeight - 2 * marginPx;
+    const innerW = pixelWidth;
+    const innerH = pixelHeight;
 
     if (innerW <= 0 || innerH <= 0) {
       return fail("inner", "Inner pixel size must be > 0 after margins.");
@@ -211,15 +231,14 @@ export function validateCode128Job(job: Job): Result<void> {
     const requiredInnerW = baseW * MIN_BAR_PX;
 
     if (innerW < requiredInnerW) {
-      const suggestedTotalW = requiredInnerW + 2 * marginPx;
-      const suggestedIn = suggestedTotalW / dpi;
+      const suggestedIn = requiredInnerW / dpi;
       const suggestedPhysical = unit === "in" ? suggestedIn : suggestedIn * 25.4;
 
       return fail(
         "too_dense",
         `Barcode too dense for reliable scanning: need about ${requiredInnerW}px inner width ` +
           `(min ${MIN_BAR_PX}px per bar/module). ` +
-          `At ${dpi} DPI, try width >= ${suggestedPhysical.toFixed(2)} ${unit} (including margin), ` +
+          `At ${dpi} DPI, try width >= ${suggestedPhysical.toFixed(2)} ${unit}, ` +
           `or reduce payload length.`
       );
     }

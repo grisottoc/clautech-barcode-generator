@@ -154,9 +154,36 @@ function fillWhiteOpaque(buf: Uint8Array) {
   }
 }
 
+function buildModuleEdges(modules: number, totalPx: number): Int32Array {
+  const base = Math.floor(totalPx / modules);
+  const remainder = totalPx - base * modules;
+  if (base < 1) {
+    throw new Error("generateDatamatrixRaster: output area too small for payload");
+  }
+
+  const edges = new Int32Array(modules + 1);
+  let pos = 0;
+  let acc = 0;
+
+  edges[0] = 0;
+  for (let i = 0; i < modules; i++) {
+    let step = base;
+    acc += remainder;
+    if (acc >= modules) {
+      step += 1;
+      acc -= modules;
+    }
+    pos += step;
+    edges[i + 1] = pos;
+  }
+
+  edges[modules] = totalPx;
+  return edges;
+}
+
 /**
- * Generate a tight Data Matrix raster from origin using integer module scaling.
- * No centering, no padding, no post-trim.
+ * Generate a Data Matrix raster sized exactly to requested pixel dimensions.
+ * No outer safe area is added; symbol touches all four edges.
  */
 export async function generateDatamatrixRaster(job: Job): Promise<RasterInput> {
   if (job.symbology !== "datamatrix") {
@@ -178,13 +205,10 @@ export async function generateDatamatrixRaster(job: Job): Promise<RasterInput> {
     throw new Error("generateDatamatrixRaster: invalid module matrix size");
   }
 
-  const modulePx = Math.floor(targetSquarePx / modules);
-  if (modulePx < 1) {
-    throw new Error("generateDatamatrixRaster: output area too small for payload");
-  }
-
-  const finalW = modules * modulePx;
-  const finalH = modules * modulePx;
+  const xEdges = buildModuleEdges(modules, targetSquarePx);
+  const yEdges = buildModuleEdges(modules, targetSquarePx);
+  const finalW = targetSquarePx;
+  const finalH = targetSquarePx;
   const out = new Uint8Array(finalW * finalH * 4);
   fillWhiteOpaque(out);
 
@@ -192,14 +216,14 @@ export async function generateDatamatrixRaster(job: Job): Promise<RasterInput> {
     for (let mx = 0; mx < modules; mx++) {
       if (bits[my * modules + mx] !== 1) continue;
 
-      const x0 = mx * modulePx;
-      const y0 = my * modulePx;
+      const x0 = xEdges[mx] ?? 0;
+      const y0 = yEdges[my] ?? 0;
+      const x1 = xEdges[mx + 1] ?? x0;
+      const y1 = yEdges[my + 1] ?? y0;
 
-      for (let py = 0; py < modulePx; py++) {
-        const y = y0 + py;
+      for (let y = y0; y < y1; y++) {
         const row = y * finalW;
-        for (let px = 0; px < modulePx; px++) {
-          const x = x0 + px;
+        for (let x = x0; x < x1; x++) {
           const i = (row + x) * 4;
           out[i + 0] = 0;
           out[i + 1] = 0;

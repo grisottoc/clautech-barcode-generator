@@ -75,6 +75,24 @@ export function thresholdToMonochromeRGBA(rgba: Uint8Array, threshold = 128): Ui
 }
 
 /**
+ * Invert strict monochrome RGBA (black <-> white), keeping alpha at 255.
+ */
+export function invertMonochromeRGBA(rgba: Uint8Array): Uint8Array {
+  assertMonochromeRGBA(rgba);
+  const out = new Uint8Array(rgba.length);
+
+  for (let i = 0; i < rgba.length; i += 4) {
+    const v = rgba[i] === 0 ? 255 : 0;
+    out[i] = v;
+    out[i + 1] = v;
+    out[i + 2] = v;
+    out[i + 3] = 255;
+  }
+
+  return out;
+}
+
+/**
  * Encodes RGBA -> PNG.
  * Enforces strict monochrome prior to encode.
  */
@@ -92,7 +110,15 @@ export async function exportPngFromRgba(input: RasterInput): Promise<Uint8Array>
 }
 
 
-export async function renderMarginAndExport(job: Job, code: RasterInput): Promise<Uint8Array> {
+export interface RenderExportOptions {
+  invert?: boolean;
+}
+
+export async function renderMarginAndExport(
+  job: Job,
+  code: RasterInput,
+  options?: RenderExportOptions
+): Promise<Uint8Array> {
   // Export should be EXACTLY the code raster dimensions.
   // Job.size and Job.margin must NOT affect output dimensions in this mode.
 
@@ -105,5 +131,8 @@ export async function renderMarginAndExport(job: Job, code: RasterInput): Promis
   const codeBW = thresholdToMonochromeRGBA(code.data);
   assertMonochromeRGBA(codeBW);
 
-  return exportPngFromRgba({ width: code.width, height: code.height, data: codeBW });
+  const shouldInvert = options?.invert ?? job.invertOutput ?? false;
+  const exportData = shouldInvert ? invertMonochromeRGBA(codeBW) : codeBW;
+
+  return exportPngFromRgba({ width: code.width, height: code.height, data: exportData });
 }

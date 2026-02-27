@@ -7,9 +7,19 @@
       content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ws://localhost:* http://localhost:*;"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      html,
+      body,
+      #root {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
     <title>ClautechBarCodeGenerator</title>
   </head>
-  <body style="margin: 0; background: #ffffff;">
+  <body style="background: #ffffff;">
     <div id="root"></div>
     <script type="module" src="/main.tsx"></script>
   </body>

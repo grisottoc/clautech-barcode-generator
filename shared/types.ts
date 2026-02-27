@@ -5,6 +5,7 @@
 
 export type Symbology = "qr" | "datamatrix" | "code128";
 export type Unit = "in" | "mm";
+export type ImageFormat = "png" | "jpg" | "bmp";
 
 /**
  * Physical size + DPI (DPI is placed here because it participates in pixel math).
@@ -40,6 +41,7 @@ export interface Job {
 
   size: PhysicalSize;
   margin: Margin;
+  invertOutput?: boolean;
 
   /** ISO strings (e.g. new Date().toISOString()) */
   createdAt: string;

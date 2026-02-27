@@ -2,7 +2,7 @@
 // Deterministic filename suggestion helpers (no filesystem access).
 // Keep format stable once released.
 
-import type { Job } from "../shared/types";
+import type { Job, ImageFormat } from "../shared/types";
 
 const WIN_RESERVED = new Set([
   "con", "prn", "aux", "nul",
@@ -13,7 +13,13 @@ const WIN_RESERVED = new Set([
 const MAX_BASE_LEN = 120;
 const MAX_PAYLOAD_SLUG = 60;
 
-export function suggestPngFilename(job: Job): string {
+const EXTENSION_BY_FORMAT: Record<ImageFormat, string> = {
+  png: "png",
+  jpg: "jpg",
+  bmp: "bmp",
+};
+
+export function suggestImageFilename(job: Job, format: ImageFormat = "png"): string {
   const payload = slugifyPayload(job.payload) || "code";
 
   let base = sanitizeBase(payload);
@@ -26,7 +32,11 @@ export function suggestPngFilename(job: Job): string {
     base = `${base}_`;
   }
 
-  return `${base}.png`;
+  return `${base}.${EXTENSION_BY_FORMAT[format]}`;
+}
+
+export function suggestPngFilename(job: Job): string {
+  return suggestImageFilename(job, "png");
 }
 
 /**

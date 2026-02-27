@@ -1,6 +1,6 @@
 // /generator/code128.ts
 import type { Job } from "../shared/types";
-import { computePixelSize, toPixels } from "../shared/units";
+import { computePixelSize } from "../shared/units";
 import JsBarcode from "jsbarcode";
 
 export interface RasterInput {
@@ -129,14 +129,11 @@ export async function generateCode128Raster(job: Job): Promise<RasterInput> {
   const size = normalizedSize(job);
 
   const { pixelWidth, pixelHeight } = computePixelSize(size, dpi);
-  const marginVal = job.margin?.value ?? 0;
-  const marginPx = marginVal > 0 ? toPixels(marginVal, size.unit, dpi) : 0;
-
-  const innerW = pixelWidth - 2 * marginPx;
-  const innerH = pixelHeight - 2 * marginPx;
+  const innerW = pixelWidth;
+  const innerH = pixelHeight;
 
   if (innerW <= 0 || innerH <= 0) {
-    throw new Error("generateCode128Raster: inner size is invalid after margin");
+    throw new Error("generateCode128Raster: invalid output size");
   }
 
   // SVG at x-dimension=1
@@ -168,30 +165,26 @@ export async function generateCode128Raster(job: Job): Promise<RasterInput> {
     throw new Error("generateCode128Raster: could not determine base width from bar rects.");
   }
 
-  const maxScale = Math.floor(innerW / baseW);
-  const scale = Math.max(1, maxScale);
+  const modulePx = innerW / baseW;
 
-  if (scale < MIN_BAR_PX) {
+  if (modulePx < MIN_BAR_PX) {
     throw new Error(
       `generateCode128Raster: barcode too dense for inner width ${innerW}px (need min bar width ${MIN_BAR_PX}px).`
     );
   }
 
-  const drawW = baseW * scale;
-  const offsetX = Math.floor((innerW - drawW) / 2);
-
   const data = fillWhite(innerW, innerH);
 
   for (const r of barRects) {
-    const x0 = offsetX + numAttr(r, "x", 0) * scale;
-    const y0 = numAttr(r, "y", 0);
-    const w = numAttr(r, "width", 0) * scale;
-    const h = numAttr(r, "height", 0);
+    const rx = numAttr(r, "x", 0);
+    const ry = numAttr(r, "y", 0);
+    const rw = numAttr(r, "width", 0);
+    const rh = numAttr(r, "height", 0);
 
-    const x1 = Math.max(0, x0);
-    const y1 = Math.max(0, y0);
-    const x2 = Math.min(innerW, x0 + w);
-    const y2 = Math.min(innerH, y0 + h);
+    const x1 = Math.max(0, Math.round(rx * modulePx));
+    const y1 = Math.max(0, Math.floor(ry));
+    const x2 = Math.min(innerW, Math.round((rx + rw) * modulePx));
+    const y2 = Math.min(innerH, Math.ceil(ry + rh));
 
     for (let y = y1; y < y2; y++) {
       for (let x = x1; x < x2; x++) {

@@ -59,4 +59,12 @@ describe("generateCode128Raster", () => {
     expect(r.height).toBe(pixelHeight);
     expect(r.data.length).toBe(pixelWidth * pixelHeight * 4);
   });
+
+  it("ignores margin for code128 raster dimensions", async () => {
+    const size = { unit: "mm" as const, width: 30, height: 4, dpi: 1200 };
+    const noMargin = await generateCode128Raster(job({ size, margin: { value: 0 } }));
+    const withMargin = await generateCode128Raster(job({ size, margin: { value: 0.1 } }));
+    expect(withMargin.width).toBe(noMargin.width);
+    expect(withMargin.height).toBe(noMargin.height);
+  });
 });
