@@ -9,6 +9,7 @@ dist/
 dist-electron/
 out/
 .release/
+release/
 
 # Electron
 *.log

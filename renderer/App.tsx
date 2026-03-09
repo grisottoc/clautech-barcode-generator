@@ -304,6 +304,11 @@ import { generateQrRaster } from "../generator/qr";
 import { generateDatamatrixRaster } from "../generator/datamatrix";
 import { renderMarginAndExport } from "../export/png";
 import { validateDatamatrixJob } from "../validation/datamatrix";
+import datamatrixIcon from "./assets/icons/matrix icon.png";
+import code128Icon from "./assets/icons/barcode icon.png";
+import qrIcon from "./assets/icons/qr code icon.png";
+import presetIcon from "./assets/icons/diskette (1).png";
+import historyIcon from "./assets/icons/history.png";
 // (If you already have QR validation module, you can wire it similarly later.)
 
 type AnimatedContentProps = {
@@ -355,141 +360,46 @@ type DockIconName = "datamatrix" | "code128" | "qr" | "presets" | "history";
 
 function DockIcon({ name }: { name: DockIconName }) {
   if (name === "datamatrix") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3.5 3.5h7v7h-7zM13.5 3.5h7v7h-7zM3.5 13.5h7v7h-7zM15 15h2v2h-2zM18 15h2v2h-2zM15 18h5v2h-5z" />
-        <circle className="accent" cx="20" cy="20" r="2" />
-      </svg>
-    );
+    return <img src={datamatrixIcon} alt="" draggable={false} />;
   }
   if (name === "code128") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 4h1v16H4zM6 4h2v16H6zM9 4h1v16H9zM11 4h3v16h-3zM15 4h1v16h-1zM17 4h2v16h-2zM20 4h1v16h-1z" />
-        <path className="accent" d="M3 21h18" />
-      </svg>
-    );
+    return <img src={code128Icon} alt="" draggable={false} />;
   }
   if (name === "qr") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3.5 3.5h8v8h-8zM12.5 3.5h8v8h-8zM3.5 12.5h8v8h-8zM14 14h2v2h-2zM17 14h3v2h-3zM14 17h6v3h-6z" />
-        <circle className="accent" cx="8" cy="8" r="1.4" />
-      </svg>
-    );
+    return <img src={qrIcon} alt="" draggable={false} />;
   }
   if (name === "presets") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M6 3.5h12v17H6zM9 8h6M9 12h6M9 16h4" />
-        <path className="accent" d="M6 3.5h12v4H6z" />
-      </svg>
-    );
+    return <img src={presetIcon} alt="" draggable={false} />;
   }
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 5v7l5 3M5 12a7 7 0 1014 0 7 7 0 10-14 0z" />
-      <circle className="accent" cx="12" cy="12" r="1.5" />
-    </svg>
-  );
+  if (name === "history") {
+    return <img src={historyIcon} alt="" draggable={false} />;
+  }
+  return null;
 }
 
-type AnimatedListProps<T> = {
+type ListPanelProps<T> = {
   items: readonly T[];
   getKey: (item: T, index: number) => string;
   emptyMessage: string;
   renderItem: (item: T, index: number) => ReactNode;
-  fadeItems?: boolean;
-  keyboardNavigation?: boolean;
-  showScrollbar?: boolean;
+  unstyled?: boolean;
 };
 
-function AnimatedList<T>({
+function ListPanel<T>({
   items,
   getKey,
   emptyMessage,
   renderItem,
-  fadeItems = true,
-  keyboardNavigation = true,
-  showScrollbar = true,
-}: AnimatedListProps<T>) {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [focusVisible, setFocusVisible] = useState(false);
-  const itemRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const hasItems = items.length > 0;
-
-  useEffect(() => {
-    setActiveIndex((prev) => Math.min(prev, Math.max(0, items.length - 1)));
-  }, [items.length]);
-
-  function focusItem(index: number) {
-    const safeIndex = Math.max(0, Math.min(index, items.length - 1));
-    setActiveIndex(safeIndex);
-    itemRefs.current[safeIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }
-
-  function activateItem(index: number) {
-    const node = itemRefs.current[index];
-    if (!node) return;
-    const actionTarget = node.querySelector("button, [role='button']") as HTMLElement | null;
-    actionTarget?.click();
-  }
-
+  unstyled = false,
+}: ListPanelProps<T>) {
   return (
-    <div
-      className={[
-        "rb-bento-list",
-        fadeItems ? "rb-fade-items" : "",
-        showScrollbar ? "rb-show-scrollbar" : "",
-        focusVisible ? "rb-list-focus-visible" : "",
-      ]
-        .join(" ")
-        .trim()}
-      tabIndex={keyboardNavigation ? 0 : -1}
-      role="listbox"
-      aria-activedescendant={
-        keyboardNavigation && hasItems ? `rb-animated-item-${activeIndex}` : undefined
-      }
-      onFocus={() => setFocusVisible(true)}
-      onBlur={() => setFocusVisible(false)}
-      onKeyDown={(e) => {
-        if (!keyboardNavigation || !hasItems) return;
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          focusItem(activeIndex + 1);
-        } else if (e.key === "ArrowUp") {
-          e.preventDefault();
-          focusItem(activeIndex - 1);
-        } else if (e.key === "Home") {
-          e.preventDefault();
-          focusItem(0);
-        } else if (e.key === "End") {
-          e.preventDefault();
-          focusItem(items.length - 1);
-        } else if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          activateItem(activeIndex);
-        }
-      }}
-    >
-      {hasItems ? (
+    <div className={`rb-bento-list ${unstyled ? "rb-bento-list-unstyled" : ""}`.trim()} role="list">
+      {items.length > 0 ? (
         items.map((item, index) => (
           <div
             key={getKey(item, index)}
-            id={`rb-animated-item-${index}`}
-            role="option"
-            aria-selected={keyboardNavigation ? activeIndex === index : undefined}
-            ref={(node) => {
-              itemRefs.current[index] = node;
-            }}
-            className={`rb-animated-list-item ${
-              keyboardNavigation && activeIndex === index ? "rb-item-active" : ""
-            }`}
-            onMouseEnter={() => {
-              if (keyboardNavigation) {
-                setActiveIndex(index);
-              }
-            }}
+            role="listitem"
+            className="rb-list-item"
           >
             {renderItem(item, index)}
           </div>
@@ -760,6 +670,8 @@ export default function App() {
   const [isSystemDark, setIsSystemDark] = useState<boolean>(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches
   );
+  const moduleShellRef = useRef<HTMLDivElement | null>(null);
+  const [sideStackHeightPx, setSideStackHeightPx] = useState<number | null>(null);
 
   const [presets, setPresets] = useState<Preset[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -857,6 +769,29 @@ export default function App() {
     setPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [pngBytes]);
+
+  useEffect(() => {
+    const node = moduleShellRef.current;
+    if (!node || typeof ResizeObserver === "undefined") {
+      setSideStackHeightPx(null);
+      return;
+    }
+
+    const syncHeight = () => {
+      const next = Math.max(0, Math.round(node.getBoundingClientRect().height));
+      setSideStackHeightPx((prev) => (prev === next ? prev : next));
+    };
+
+    syncHeight();
+    const observer = new ResizeObserver(syncHeight);
+    observer.observe(node);
+    window.addEventListener("resize", syncHeight);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", syncHeight);
+    };
+  }, []);
 
   async function appendHistorySnapshot(savedPath?: string) {
     const item: HistoryItem = {
@@ -1012,13 +947,21 @@ export default function App() {
       : trimmedScanTest === trimmedPayload
       ? "match"
       : "mismatch";
+  const sideStackStyle = sideStackHeightPx
+    ? ({ ["--side-stack-height" as string]: `${sideStackHeightPx}px` } as CSSProperties)
+    : undefined;
 
   return (
     <div className={`app-shell ${resolvedTheme === "dark" ? "rb-theme-dark" : "rb-theme-light"}`}>
       <style>{`
         .app-shell {
           --generator-height: 620px;
-          --dock-accent: #ff8a3d;
+          --container-gap: 30px;
+          --side-container-gap: 30px;
+          --dock-modules-gap: 30px;
+          --halo-border: rgba(36, 210, 255, 0.78);
+          --halo-ring-soft: 0 0 0 4px rgba(36, 210, 255, 0.24);
+          --halo-ring-strong: 0 0 0 4px rgba(36, 210, 255, 0.32);
           min-height: 100%;
           height: 100%;
           padding: 16px 32px;
@@ -1086,24 +1029,19 @@ export default function App() {
         .rb-toolbar {
           display: grid;
           grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
-          gap: 20px;
-          margin-bottom: 20px;
+          gap: var(--container-gap);
+          margin-bottom: var(--dock-modules-gap);
           align-items: stretch;
         }
 
-        .rb-dock {
+        .rb-toolbar-main {
           display: grid;
           gap: 12px;
-          align-items: stretch;
-          padding: 10px 16px;
-          border: 1px solid var(--card-border);
-          border-radius: 12px;
-          background: var(--surface);
+          align-content: start;
         }
 
-        .rb-dock-title {
+        .rb-toolbar-title {
           margin: 0;
-          text-align: center;
           letter-spacing: 0.03em;
           font-size: clamp(1.1rem, 1.7vw, 1.55rem);
           font-weight: 700;
@@ -1121,43 +1059,46 @@ export default function App() {
 
         .rb-dock-controls {
           width: 100%;
-          display: flex;
-          flex-wrap: wrap;
-          justify-content: space-evenly;
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(78px, 104px));
+          justify-content: space-between;
           align-items: stretch;
-          gap: 8px;
+          gap: 10px;
         }
 
         .rb-dock-button {
-          width: 48px;
-          height: 48px;
-          display: grid;
-          place-items: center;
+          width: 100%;
+          min-height: 78px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
           border: 1px solid var(--card-border);
-          border-radius: 10px;
+          border-radius: 12px;
           background: var(--surface-strong);
           color: var(--text-main);
-          padding: 0;
+          padding: 8px 10px;
           cursor: pointer;
-          transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+          transition: border-color 0.18s ease, background-color 0.18s ease;
         }
 
         .rb-dock-button:hover {
-          border-color: rgba(36, 210, 255, 0.72);
-          transform: translateY(-1px);
+          border-color: var(--card-border);
+          box-shadow: none;
         }
 
         .rb-dock-button.rb-dock-active {
-          border-color: rgba(36, 210, 255, 0.92);
-          box-shadow: 0 0 0 2px rgba(36, 210, 255, 0.24);
+          border-color: var(--halo-border);
+          box-shadow: none;
         }
 
         .rb-dock-icon {
-          width: 24px;
-          height: 24px;
+          width: 28px;
+          height: 28px;
           color: inherit;
-          opacity: 0.9;
-          transition: transform 0.18s ease, opacity 0.18s ease;
+          opacity: 1;
+          transition: opacity 0.18s ease;
         }
 
         .rb-dock-icon svg {
@@ -1171,24 +1112,32 @@ export default function App() {
           stroke-linejoin: round;
         }
 
-        .rb-dock-icon svg .accent {
-          fill: var(--dock-accent);
-          stroke: var(--dock-accent);
+        .rb-dock-icon img {
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
         }
 
         .rb-dock-button:hover .rb-dock-icon {
           opacity: 1;
-          transform: scale(1.06);
         }
 
-        .rb-dock-button.rb-dock-active .rb-dock-icon {
-          animation: rb-dock-breathe 1.7s ease-in-out infinite;
+        .rb-dock-label {
+          font-size: 0.7rem;
+          font-weight: 600;
+          line-height: 1;
+          letter-spacing: 0.02em;
+          color: var(--text-dim);
+          text-align: center;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          overflow: hidden;
+          max-width: 100%;
         }
 
-        @keyframes rb-dock-breathe {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.06); }
-          100% { transform: scale(1); }
+        .rb-dock-button.rb-dock-active .rb-dock-label {
+          color: var(--text-main);
         }
 
         .rb-test-panel {
@@ -1221,8 +1170,8 @@ export default function App() {
         }
 
         .rb-textarea:focus {
-          border-color: var(--accent);
-          box-shadow: 0 0 0 2px rgba(36, 210, 255, 0.2);
+          border-color: rgba(255, 255, 255, 0.2);
+          box-shadow: none;
           outline: none;
         }
 
@@ -1249,7 +1198,7 @@ export default function App() {
         .rb-workspace {
           display: grid;
           grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
-          gap: 20px;
+          gap: var(--container-gap);
           align-items: stretch;
         }
 
@@ -1258,46 +1207,80 @@ export default function App() {
         }
 
         .rb-module-shell.rb-module-active .rb-bento-card {
-          border-color: rgba(36, 210, 255, 0.78);
-          box-shadow: 0 0 0 4px rgba(36, 210, 255, 0.32), 0 14px 30px rgba(0, 0, 0, 0.3);
+          border-color: var(--halo-border);
+          box-shadow: var(--halo-ring-strong), 0 14px 30px rgba(0, 0, 0, 0.3);
         }
 
         .rb-side-stack {
           display: grid;
-          gap: 20px;
-          align-content: start;
+          gap: var(--side-container-gap);
+          align-content: stretch;
+          min-height: var(--generator-height);
+          height: var(--side-stack-height, var(--generator-height));
+          grid-template-rows: minmax(0, 1fr);
         }
 
         .rb-side-stack.rb-side-stack-split {
-          height: var(--generator-height);
           grid-template-rows: repeat(2, minmax(0, 1fr));
-          align-content: stretch;
         }
 
-        .rb-side-stack.rb-side-stack-split .rb-side-card {
+        .rb-side-card {
           display: grid;
-          min-height: 0;
-          overflow: hidden;
-        }
-
-        .rb-side-stack.rb-side-stack-split .rb-side-card .rb-bento-card {
-          height: 100%;
           min-height: 0;
           overflow: hidden;
         }
 
         .rb-side-card .rb-bento-card {
-          min-height: 230px;
-          border-color: rgba(36, 210, 255, 0.78);
-          box-shadow: 0 0 0 4px rgba(36, 210, 255, 0.32), 0 14px 30px rgba(0, 0, 0, 0.3);
+          height: 100%;
+          min-height: 0;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
         }
 
         .rb-side-card .rb-bento-list {
-          max-height: 160px;
+          flex: 1;
+          min-height: 0;
+          max-height: none;
         }
 
         .rb-side-card .rb-bento-body {
-          gap: 8px;
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          min-height: 0;
+          gap: 10px;
+        }
+
+        .rb-side-card.rb-side-card-unstyled .rb-bento-card {
+          border: none;
+          border-radius: 0;
+          background: transparent;
+          box-shadow: none;
+          padding: 0;
+        }
+
+        .rb-side-card.rb-side-card-unstyled .rb-bento-head h3 {
+          font-size: 1.35rem;
+        }
+
+        .rb-side-card.rb-side-card-unstyled .rb-bento-head p {
+          margin-top: 2px;
+        }
+
+        .rb-side-card.rb-side-card-unstyled .rb-bento-body {
+          margin-top: 8px;
+        }
+
+        .rb-side-card.rb-side-card-unstyled .rb-button {
+          transition: none;
+        }
+
+        .rb-side-card.rb-side-card-unstyled .rb-button:hover,
+        .rb-side-card.rb-side-card-unstyled .rb-button:focus,
+        .rb-side-card.rb-side-card-unstyled .rb-button:focus-visible {
+          border-color: var(--card-border);
+          box-shadow: none;
         }
 
         .rb-module-top {
@@ -1335,6 +1318,22 @@ export default function App() {
         .rb-module-save {
           width: fit-content;
           align-self: end;
+          transition: none;
+          animation: none;
+        }
+
+        .rb-button.rb-module-save:hover,
+        .rb-button.rb-module-save:focus,
+        .rb-button.rb-module-save:focus-visible {
+          box-shadow: none;
+          transition: none;
+          animation: none;
+        }
+
+        .rb-button.rb-module-save:active {
+          filter: none;
+          transition: none;
+          animation: none;
         }
 
         .rb-module-preview {
@@ -1384,15 +1383,54 @@ export default function App() {
         }
 
         .rb-input:focus,
-        .rb-select:focus,
-        .rb-button:hover {
-          border-color: var(--accent);
-          box-shadow: 0 0 0 2px rgba(36, 210, 255, 0.2);
+        .rb-select:focus {
+          border-color: rgba(255, 255, 255, 0.2);
+          box-shadow: none;
+          outline: none;
+        }
+
+        .rb-button:hover,
+        .rb-button:focus,
+        .rb-button:focus-visible {
+          border-color: rgba(255, 255, 255, 0.2);
+          box-shadow: none;
           outline: none;
         }
 
         .rb-button:active {
           filter: brightness(0.98);
+        }
+
+        .rb-button-with-icon {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .rb-side-action {
+          width: 168px;
+          justify-content: center;
+          align-self: start;
+        }
+
+        .rb-inline-icon {
+          display: inline-flex;
+          width: 16px;
+          height: 16px;
+          opacity: 0.9;
+        }
+
+        .rb-inline-icon svg {
+          display: block;
+          width: 100%;
+          height: 100%;
+        }
+
+        .rb-inline-icon img {
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
         }
 
         .rb-muted {
@@ -1431,6 +1469,13 @@ export default function App() {
           gap: 8px;
         }
 
+        .app-shell,
+        .rb-bento-list,
+        .rb-textarea {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(36, 210, 255, 0.52) rgba(255, 255, 255, 0.08);
+        }
+
         .rb-bento-list {
           display: grid;
           gap: 6px;
@@ -1440,43 +1485,39 @@ export default function App() {
           outline: none;
         }
 
-        .rb-bento-list.rb-show-scrollbar {
-          scrollbar-width: thin;
-          scrollbar-color: rgba(36, 210, 255, 0.52) rgba(255, 255, 255, 0.08);
-        }
-
-        .rb-bento-list.rb-show-scrollbar::-webkit-scrollbar {
+        .app-shell::-webkit-scrollbar,
+        .rb-bento-list::-webkit-scrollbar,
+        .rb-textarea::-webkit-scrollbar {
           width: 10px;
+          height: 10px;
         }
 
-        .rb-bento-list.rb-show-scrollbar::-webkit-scrollbar-track {
+        .app-shell::-webkit-scrollbar-track,
+        .rb-bento-list::-webkit-scrollbar-track,
+        .rb-textarea::-webkit-scrollbar-track {
           background: rgba(255, 255, 255, 0.06);
           border-radius: 999px;
         }
 
-        .rb-bento-list.rb-show-scrollbar::-webkit-scrollbar-thumb {
+        .app-shell::-webkit-scrollbar-thumb,
+        .rb-bento-list::-webkit-scrollbar-thumb,
+        .rb-textarea::-webkit-scrollbar-thumb {
           background: rgba(36, 210, 255, 0.55);
           border-radius: 999px;
           border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
-        .rb-bento-list.rb-list-focus-visible {
-          box-shadow: inset 0 0 0 1px rgba(36, 210, 255, 0.4);
+        .rb-list-item {
+          border: 1px solid transparent;
           border-radius: 10px;
+          padding: 2px;
+          transition: none;
         }
 
-        .rb-animated-list-item {
-          opacity: 1;
-          transform: none;
-        }
-
-        .rb-animated-list-item:hover {
-          transform: none;
-        }
-
-        .rb-animated-list-item.rb-item-active {
-          box-shadow: 0 0 0 1px rgba(36, 210, 255, 0.34);
-          border-radius: 10px;
+        .rb-list-item:hover,
+        .rb-list-item:focus-within {
+          border-color: rgba(36, 210, 255, 0.42);
+          box-shadow: 0 0 0 1px rgba(36, 210, 255, 0.18);
         }
 
         .rb-list-empty {
@@ -1503,6 +1544,50 @@ export default function App() {
           min-width: 36px;
         }
 
+        .rb-bento-list.rb-bento-list-unstyled {
+          gap: 8px;
+          padding-right: 0;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+
+        .rb-bento-list.rb-bento-list-unstyled::-webkit-scrollbar {
+          display: none;
+          width: 0;
+          height: 0;
+        }
+
+        .rb-bento-list.rb-bento-list-unstyled .rb-list-item {
+          border: none;
+          border-radius: 0;
+          padding: 0;
+          box-shadow: none;
+          transition: none;
+        }
+
+        .rb-bento-list.rb-bento-list-unstyled .rb-list-item:hover,
+        .rb-bento-list.rb-bento-list-unstyled .rb-list-item:focus-within {
+          border-color: transparent;
+          box-shadow: none;
+        }
+
+        .rb-bento-list.rb-bento-list-unstyled .rb-list-row .rb-button {
+          transition: none;
+        }
+
+        .rb-bento-list.rb-bento-list-unstyled .rb-list-row .rb-button:hover,
+        .rb-bento-list.rb-bento-list-unstyled .rb-list-row .rb-button:focus,
+        .rb-bento-list.rb-bento-list-unstyled .rb-list-row .rb-button:focus-visible {
+          border-color: var(--card-border);
+          box-shadow: none;
+        }
+
+        .rb-bento-list.rb-bento-list-unstyled .rb-list-empty {
+          border: none;
+          background: transparent;
+          padding: 2px 0;
+        }
+
         @media (max-width: 720px) {
           .app-shell {
             padding: 12px 16px;
@@ -1511,19 +1596,25 @@ export default function App() {
           .rb-toolbar {
             grid-template-columns: 1fr;
             gap: 12px;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
           }
 
-          .rb-dock {
-            padding: 10px 12px;
+          .rb-dock-controls {
+            gap: 8px;
+            grid-template-columns: repeat(auto-fit, minmax(72px, 94px));
+            justify-content: space-between;
           }
 
           .rb-workspace {
             grid-template-columns: 1fr;
           }
 
-          .rb-side-stack.rb-side-stack-split {
+          .rb-side-stack {
             height: auto;
+            gap: 20px;
+          }
+
+          .rb-side-stack.rb-side-stack-split {
             grid-template-rows: none;
           }
 
@@ -1540,14 +1631,14 @@ export default function App() {
       <AnimatedContent>
         <div className="rb-panel">
           <div className="rb-toolbar">
-            <div className="rb-dock" role="toolbar" aria-label="Module dock">
-              <h1 className="rb-dock-title">
+            <div className="rb-toolbar-main">
+              <h1 className="rb-toolbar-title">
                 <ShinyText
                   text="ClautechBarCodeGenerator"
                   className="rb-reactbits-title"
                 />
               </h1>
-              <div className="rb-dock-controls">
+              <div className="rb-dock-controls" role="toolbar" aria-label="Module dock">
                 {SYMBOLOGY_SWITCH_CARDS.map((card) => (
                   <button
                     key={card.symbology}
@@ -1561,6 +1652,7 @@ export default function App() {
                     <span className="rb-dock-icon" data-icon={card.symbology}>
                       <DockIcon name={card.symbology} />
                     </span>
+                    <span className="rb-dock-label">{card.label}</span>
                   </button>
                 ))}
                 <button
@@ -1574,6 +1666,7 @@ export default function App() {
                   <span className="rb-dock-icon" data-icon="presets">
                     <DockIcon name="presets" />
                   </span>
+                  <span className="rb-dock-label">Presets</span>
                 </button>
                 <button
                   type="button"
@@ -1586,6 +1679,7 @@ export default function App() {
                   <span className="rb-dock-icon" data-icon="history">
                     <DockIcon name="history" />
                   </span>
+                  <span className="rb-dock-label">History</span>
                 </button>
               </div>
             </div>
@@ -1618,7 +1712,11 @@ export default function App() {
 
           <div className="rb-workspace">
             <div className="rb-modules-grid">
-              <div className="rb-module-shell rb-module-active" aria-label={`${activeModuleCard.label} module`}>
+              <div
+                ref={moduleShellRef}
+                className="rb-module-shell rb-module-active"
+                aria-label={`${activeModuleCard.label} module`}
+              >
                 <BentoBox title={activeModuleCard.label} subtitle={activeModuleCard.subtitle}>
                   <div className="rb-module-top">
                     <label className="rb-module-field rb-module-field-wide">
@@ -1840,20 +1938,22 @@ export default function App() {
                 className={`rb-side-stack ${
                   showPresets && showHistory ? "rb-side-stack-split" : ""
                 }`.trim()}
+                style={sideStackStyle}
               >
                 {showPresets && (
-                  <div className="rb-side-card">
+                  <div className="rb-side-card rb-side-card-unstyled">
                     <BentoBox title="Presets">
-                      <button className="rb-button" onClick={onSavePreset}>
+                      <button className="rb-button rb-button-with-icon rb-side-action" onClick={onSavePreset}>
+                        <span className="rb-inline-icon" aria-hidden="true">
+                          <DockIcon name="presets" />
+                        </span>
                         Save Preset
                       </button>
-                      <AnimatedList
+                      <ListPanel
                         items={presets}
                         getKey={(p) => p.id}
                         emptyMessage="No presets saved yet."
-                        fadeItems
-                        keyboardNavigation
-                        showScrollbar
+                        unstyled
                         renderItem={(p) => (
                           <div className="rb-list-row">
                             <button
@@ -1878,25 +1978,25 @@ export default function App() {
                 )}
 
                 {showHistory && (
-                  <div className="rb-side-card">
+                  <div className="rb-side-card rb-side-card-unstyled">
                     <BentoBox title="History">
                       <button
-                        className="rb-button"
+                        className="rb-button rb-button-with-icon rb-side-action"
                         onClick={async () => {
                           const next = await window.api.clearHistory();
                           setHistory(next);
                         }}
-                        style={{ width: "fit-content" }}
                       >
+                        <span className="rb-inline-icon" aria-hidden="true">
+                          <DockIcon name="history" />
+                        </span>
                         Clear History
                       </button>
-                      <AnimatedList
+                      <ListPanel
                         items={history.slice(0, 10)}
                         getKey={(h) => h.id}
                         emptyMessage="No history yet."
-                        fadeItems
-                        keyboardNavigation
-                        showScrollbar
+                        unstyled
                         renderItem={(h) => (
                           <div className="rb-list-row">
                             <button

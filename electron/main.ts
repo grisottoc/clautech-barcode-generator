@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, nativeImage, nativeTheme } from "electron";
+import fs from "node:fs";
 import path from "node:path";
 import UPNG from "upng-js";
 import { LocalJsonStore } from "../persistence/store";
@@ -8,6 +9,11 @@ import { writeFileAtomic } from "./fileSave";
 
 const isDev = !app.isPackaged;
 const JPEG_QUALITY = 95;
+const APP_USER_MODEL_ID = "com.clautech.barcodegenerator";
+
+if (process.platform === "win32") {
+  app.setAppUserModelId(APP_USER_MODEL_ID);
+}
 
 const SAVE_DIALOG_FILTERS: Record<ImageFormat, Electron.FileFilter[]> = {
   png: [{ name: "PNG Image", extensions: ["png"] }],
@@ -32,12 +38,56 @@ function applySystemTheme(): void {
   mainWindow?.setBackgroundColor(resolveWindowBackgroundColor());
 }
 
+function resolvePackagedResourcePath(relativePath: string): string | undefined {
+  const devResource = path.resolve(app.getAppPath(), relativePath);
+  if (isDev && fs.existsSync(devResource)) {
+    return devResource;
+  }
+
+  const packagedResource = path.join(process.resourcesPath, relativePath);
+  if (fs.existsSync(packagedResource)) {
+    return packagedResource;
+  }
+
+  return undefined;
+}
+
+function resolveWindowIconPath(): string | undefined {
+  if (process.platform !== "win32" && process.platform !== "linux") {
+    return undefined;
+  }
+
+  if (process.platform === "win32") {
+    return resolvePackagedResourcePath(path.join("build", "icon.ico"));
+  }
+
+  return resolvePackagedResourcePath(path.join("build", "icon.png"));
+}
+
+function applyDockIcon(): void {
+  if (process.platform !== "darwin") {
+    return;
+  }
+
+  const dockIconPath = resolvePackagedResourcePath(path.join("build", "icon.png"));
+  if (!dockIconPath) {
+    return;
+  }
+
+  const dockIcon = nativeImage.createFromPath(dockIconPath);
+  if (!dockIcon.isEmpty()) {
+    app.dock.setIcon(dockIcon);
+  }
+}
+
 function createWindow() {
   applySystemTheme();
+  const windowIcon = resolveWindowIconPath();
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 1080,
     backgroundColor: resolveWindowBackgroundColor(),
+    ...(windowIcon ? { icon: windowIcon } : {}),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -299,6 +349,7 @@ export function registerPersistenceIpc() {
 }
 
 app.whenReady().then(() => {
+  applyDockIcon();
   createWindow();
   nativeTheme.on("updated", () => {
     if (nativeTheme.themeSource === "system") {

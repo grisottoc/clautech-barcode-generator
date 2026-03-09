@@ -18,6 +18,8 @@ Implemented:
 - Multi-format save (`png`, `jpg`, `bmp`) with Save As dialog
 - Scan test text area to compare scanner output vs current payload
 - System-theme driven UI (no manual theme switch)
+- Windows packaging with installer and portable targets
+- Custom application, installer, shortcut, and dock/module icon assets
 
 ## Requirements
 
@@ -48,6 +50,12 @@ npm run test:run
   Runs Vitest once.
 - `npm run build`  
   Type-check + production build.
+- `npm run dist:win`  
+  Builds the NSIS Windows installer into `release/`.
+- `npm run dist:portable`  
+  Builds the portable Windows executable into `release/`.
+- `npm run dist:all`  
+  Builds both NSIS and portable Windows artifacts.
 
 ## App Behavior and Defaults
 
@@ -73,7 +81,8 @@ npm run test:run
 ## Shared UI
 - DPI options: `300`, `600`, `1200`
 - Save format options: `PNG`, `JPG`, `BMP`
-- Dock controls include icon tooltips on hover
+- Dock controls use labeled icon buttons for symbology, presets, and history
+- Presets and History panels live beside the main generator and reuse the same persistence store
 
 ## Presets and History
 
@@ -101,6 +110,7 @@ npm run test:run
 ## Project Structure
 
 ```text
+build/         App/installer icons and NSIS customization
 electron/      Main process, preload bridge, save pipeline
 renderer/      React UI
 generator/     Symbology raster generators
@@ -108,13 +118,16 @@ validation/    Input and density checks per symbology
 export/        Monochrome export composition
 persistence/   Local JSON store for presets/history
 shared/        Shared types + deterministic unit math
+types/         Ambient module type declarations
 ```
 
-## Known Issues
+## Packaging Notes
 
-- `npm run build` currently fails due existing TypeScript issues (validation/generator typing and a few strict-null checks).
-- `npm run test:run` passes and is the current stability gate while those build issues are being fixed.
+- Windows builds use `electron-builder` with `NSIS` and `portable` targets.
+- Build resources live in `build/` and are copied into packaged resources for runtime icon resolution.
+- `build/installer.nsh` forces Windows shortcuts to use the packaged custom icon resource.
+- The main installer artifact is written to `release/Clautech Barcode Generator-<version>-x64.exe`.
 
 ## Internal Notes
 
-This repository is private/internal. If you want release-grade packaging docs (installer, code signing, CI), add them in a follow-up docs pass after build issues are closed.
+This repository is private/internal. Code signing and CI/CD publishing are not configured yet; current packaging is intended for local/internal distribution.

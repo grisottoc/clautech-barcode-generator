@@ -12,6 +12,13 @@
 - Print Scan Test area for comparing scanner output with current payload
 - Dock redesign with icon-only controls and hover titles
 - Expanded and completed top-level repository documentation
+- Windows packaging via `electron-builder`:
+  - NSIS installer target
+  - Portable target
+  - Custom installer/uninstaller/header icons
+  - Desktop and Start Menu shortcut icon override through NSIS include
+- Renderer icon assets for QR, Data Matrix, Code128, Presets, and History
+- Runtime app icon loading for packaged resources
 
 ### Changed
 - Code128 defaults:
@@ -25,10 +32,14 @@
 - Window defaults updated to 1440 x 1080 and system-theme mode
 - DevTools auto-open on startup disabled
 - Renderer scrolling behavior tuned to show scrollbars only on overflow
+- Dock buttons redesigned as labeled icon controls with tightened hover/focus styling
+- Presets panel shell aligned with the main generator container style
+- Presets and History lists simplified to remove extra list chrome and visible scrollbars
 
 ### Fixed
 - Code128 export path now uses zero margin normalization in UI flow to prevent side safe-space padding
 - Preview container sizing transitions reduced across symbology switches
+- Build now passes with current renderer asset typing and packaging configuration
 
 ## [0.3.0] - 2026-02-10
 ### Added
